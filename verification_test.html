@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blogger Test</title>
+    <style>
+        .hidden { display: none !important; }
+        .active { display: block !important; }
+        .cart-fab { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: orange; border-radius: 50%; }
+        .cart-count { background: red; color: white; border-radius: 50%; padding: 2px 6px; }
+        .cart-drawer { position: fixed; right: -400px; top: 0; width: 300px; height: 100%; background: white; transition: right 0.3s; }
+        .cart-drawer.active { right: 0; }
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; }
+        .modal-backdrop.active { display: block; }
+    </style>
+</head>
+<body>
+    <div id="initializing-state">Loading...</div>
+    <div id="carousel-section" class="hidden">
+        <div id="carousel-inner"></div>
+        <div id="thumbnail-row"></div>
+    </div>
+    <div id="details-section" class="hidden">
+        <h1 id="p-name"></h1>
+        <p id="p-desc"></p>
+        <div id="p-price"></div>
+        <div id="stock-badge-container"></div>
+        <div id="p-variants"></div>
+        <div id="p-specs">
+            <div id="specs-list"></div>
+        </div>
+        <div class="qty-controls">
+            <button id="qty-minus">-</button>
+            <span id="qty-val">1</span>
+            <button id="qty-plus">+</button>
+        </div>
+        <button id="add-to-cart-btn">Add to Cart</button>
+    </div>
+
+    <div id="p-seller" style="display:none;">
+        <div id="seller-info"></div>
+        <a id="maps-link" href="#">Map</a>
+    </div>
+
+    <div id="other-services" style="display:none;">
+        <h3>Other Services</h3>
+        <div id="other-services-list"></div>
+    </div>
+
+    <div id="cart-fab-container"></div>
+    <div id="cart-modal-backdrop" class="cart-backdrop modal-backdrop"></div>
+    <div id="cart-drawer" class="cart-drawer">
+        <h3>Bag</h3>
+        <div id="cart-items-list"></div>
+        <div id="cart-total-price"></div>
+        <button id="cart-confirm-btn">Confirm Order</button>
+    </div>
+
+    <div id="loc-modal-backdrop" class="modal-backdrop">
+        <input id="modal-pin-input" />
+        <button onclick="LocationRenderer.handleSetPin()">Set Pin</button>
+    </div>
+    <input id="loc-display-v2" />
+
+    <div id="post-body-raw" class="hidden">
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "Super Smartphone",
+            "description": "A great phone",
+            "image": "https://via.placeholder.com/150",
+            "offers": {
+                "@type": "Offer",
+                "price": "49999",
+                "priceCurrency": "INR",
+                "availability": "https://schema.org/InStock",
+                "seller": {
+                    "@type": "Organization",
+                    "name": "Antinna Shop",
+                    "hasOfferCatalog": {
+                        "@type": "OfferCatalog",
+                        "itemListElement": [
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Screen Protection",
+                                    "offers": { "price": "999", "priceCurrency": "INR" }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            "variesBy": ["color"],
+            "hasVariant": [
+                {
+                    "@type": "Product",
+                    "name": "Super Smartphone Black",
+                    "color": "Black",
+                    "sku": "PHONE-BLK",
+                    "offers": { "price": "49999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" }
+                },
+                {
+                    "@type": "Product",
+                    "name": "Super Smartphone White",
+                    "color": "White",
+                    "sku": "PHONE-WHT",
+                    "offers": { "price": "50999", "priceCurrency": "INR", "availability": "https://schema.org/InStock" }
+                }
+            ]
+        }
+        </script>
+    </div>
+
+    <script src="dist/antinna-engine.iife.js"></script>
+</body>
+</html>

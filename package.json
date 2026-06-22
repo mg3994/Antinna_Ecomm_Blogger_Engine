@@ -1,0 +1,17 @@
+{
+  "name": "antinna-blogger-engine",
+  "version": "1.0.0",
+  "description": "Blogger E-commerce Engine",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^4.0.0",
+    "vitest": "^0.30.0",
+    "jsdom": "^21.0.0"
+  }
+}
