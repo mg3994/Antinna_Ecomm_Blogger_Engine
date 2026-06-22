@@ -8,6 +8,9 @@ on:
     branches:
       - '**'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18'
+        node-version: 'latest'
         cache: 'npm'
 
     - name: Install dependencies
@@ -30,16 +33,11 @@ jobs:
     - name: Build project
       run: npm run build
 
-    - name: Create Release Artifacts
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+    - name: Push into Releases Tab
+      uses: ncipollo/release-action@v1
       with:
-        files: |
-          dist/antinna-engine.iife.js
-          dist/antinna-engine.es.js
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: "dist/antinna-engine.iife.js,dist/antinna-engine.es.js"
+        tag: "v${{ github.run_number }}"
+        name: "Release v${{ github.run_number }}"
+        allowUpdates: true
+        token: ${{ secrets.GITHUB_TOKEN }}
