@@ -14,7 +14,7 @@ export class GooglePayService {
       {
         supportedMethods: 'https://tez.google.com/pay',
         data: {
-          pa: 'antinna@okicici',
+          pa: 'manishsharma3994@okhdfcbank',
           pn: this.merchantName,
           tr: `TR${Date.now()}`,
           url: window.location.href,
