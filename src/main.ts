@@ -19,6 +19,9 @@ export class App {
     selectedPackage: null
   };
 
+  private gridPageSize = 20;
+  private gridStartIndex = 1;
+
   public CartManager = new CartManager();
   public LocationManager = new LocationManager();
   public BloggerDataService = new BloggerDataService();
@@ -47,6 +50,7 @@ export class App {
     (window as any).goToSlide = (i: number) => this.goToSlide(i);
     (window as any).syncDots = (el: HTMLElement) => this.syncDots(el);
     (window as any).showToast = (m: string, t: 'success' | 'error') => UIManager.showToast(m, t);
+    (window as any).loadMorePosts = () => this.loadMorePosts();
   }
 
   private init(): void {
@@ -123,7 +127,7 @@ export class App {
     const cards = document.querySelectorAll<HTMLAnchorElement>(".card");
     if (cards.length === 0) return;
 
-    const entries = await this.BloggerDataService.fetchFeedData();
+    const { entries } = await this.BloggerDataService.fetchFeedData(50, 1);
     cards.forEach(card => {
       const url = card.href.split("?")[0].split("#")[0];
       const entry = entries.find(e => e.link.some((l: any) => l.rel === "alternate" && l.href.includes(url)));
@@ -135,6 +139,43 @@ export class App {
         this.renderGridCard(card, data);
       }
     });
+  }
+
+  public async loadMorePosts(): Promise<void> {
+    this.gridStartIndex += this.gridPageSize;
+    const { entries, totalResults } = await this.BloggerDataService.fetchFeedData(this.gridPageSize, this.gridStartIndex);
+
+    const grid = UIManager.el("app-grid");
+    if (!grid) return;
+
+    entries.forEach(entry => {
+      const data = this.BloggerDataService.extractSchemaFromEntry(entry);
+      if (data) {
+        const url = entry.link.find((l: any) => l.rel === "alternate")?.href || "#";
+        const card = document.createElement("a");
+        card.className = "card";
+        card.href = url;
+        card.innerHTML = `
+          <div class="card-img-wrapper">
+             <div class="card-img-scroll" onscroll="AntinnaEngine.syncDots(this)">
+                <img class="card-img" src="${(Array.isArray(data.image) ? data.image[0] : (data.image?.url || data.image)) || 'https://via.placeholder.com/400x300?text=Antinna'}" loading="lazy"/>
+             </div>
+             <div class="card-dots"></div>
+          </div>
+          <div class="card-body">
+            <div class="card-badge">${(data["@type"] === 'ProductGroup' || data["@type"] === 'Product') ? 'Product' : 'Service'}</div>
+            <h3 class="card-title">${data.name || "Untitled"}</h3>
+            <div class="card-price">${(data.offers?.priceCurrency || "INR") + " " + (data.offers?.price || "")}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+        this.renderGridCard(card, data);
+      }
+    });
+
+    if (this.gridStartIndex + this.gridPageSize > totalResults) {
+      UIManager.el("load-more-btn")?.classList.add("hidden");
+    }
   }
 
   private renderGridCard(card: HTMLElement, data: any): void {

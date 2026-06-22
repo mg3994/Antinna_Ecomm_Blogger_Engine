@@ -18,7 +18,7 @@ export class GooglePayService {
           pn: this.merchantName,
           tr: `TR${Date.now()}`,
           url: window.location.href,
-          mc: '5411',
+          mc: '5251',
           tn: `Order from ${this.merchantName}`,
         },
       }

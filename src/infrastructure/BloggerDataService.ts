@@ -1,15 +1,18 @@
 import { SchemaExtractor } from '../core/SchemaExtractor';
 
 export class BloggerDataService {
-  async fetchFeedData(maxResults: number = 50): Promise<any[]> {
-    const feedUrl = `/feeds/posts/default?alt=json&max-results=${maxResults}`;
+  async fetchFeedData(maxResults: number = 50, startIndex: number = 1): Promise<{ entries: any[], totalResults: number }> {
+    const feedUrl = `/feeds/posts/default?alt=json&max-results=${maxResults}&start-index=${startIndex}`;
     try {
       const res = await fetch(feedUrl);
       const data = await res.json();
-      return data.feed.entry || [];
+      return {
+        entries: data.feed.entry || [],
+        totalResults: parseInt(data.feed.openSearch$totalResults?.$t || "0")
+      };
     } catch (e) {
       console.error("Failed to fetch Blogger feed", e);
-      return [];
+      return { entries: [], totalResults: 0 };
     }
   }
 
