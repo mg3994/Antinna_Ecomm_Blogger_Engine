@@ -46,7 +46,7 @@ export class CartManager {
       const specs: any = {};
       const fields = [
         'material', 'color', 'size', 'gtin13', 'sku',
-        'weight', 'height', 'width', 'depth', 'parentProductName'
+        'weight', 'height', 'width', 'depth'
       ];
 
       fields.forEach(field => {
@@ -73,16 +73,7 @@ export class CartManager {
     const item = this.order.orderedItem[index];
     if (!item) return;
 
-    const name = item.orderedItem.name;
-    this.order.orderedItem = this.order.orderedItem.filter(
-      (oi) => (oi.orderedItem as any).parentProductName !== name
-    );
-
-    const newIndex = this.order.orderedItem.indexOf(item);
-    if (newIndex > -1) {
-      this.order.orderedItem.splice(newIndex, 1);
-    }
-
+    this.order.orderedItem.splice(index, 1);
     this.saveToStorage();
   }
 

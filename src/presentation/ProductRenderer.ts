@@ -1,4 +1,4 @@
-import { Product, ProductGroup, Service, Offer, Organization, Thing } from '../types/schema';
+import { Product, ProductGroup, Service, Offer, Organization } from '../types/schema';
 import { AppState } from '../types/app';
 import { UIManager } from './UIManager';
 
@@ -256,21 +256,10 @@ export class ProductRenderer {
         const cr = ser.priceCurrency || 'INR';
         const ci = ser.itemOffered ? { ...ser.itemOffered } : (typeof ser === 'object' ? { ...ser } : { name: ser });
         if (!ci.offers) ci.offers = { "@type": "Offer", price: pr, priceCurrency: cr };
-        const isAddon = ser.isLinkedAddon || ser.itemOffered?.isLinkedAddon;
-        const parent = ser.parentProductName || ser.itemOffered?.parentProductName;
 
         let btnH = `<button class="v-btn" style="width:100%;padding:10px;font-size:0.85rem;" onclick="CartManager.addItem(${JSON.stringify(ci).replace(/"/g, '&quot;')}, ${JSON.stringify(s).replace(/"/g, '&quot;')}); CartRenderer.updateUI();">Add Service</button>`;
-        let disc = '';
-        if (isAddon && parent) {
-          const cartOrder = (window as any).CartManager.getOrder();
-          if (!cartOrder.orderedItem.some((x: any) => x.orderedItem.name === parent)) {
-            btnH = `<button class="v-btn" style="width:100%;padding:10px;font-size:0.85rem;opacity:0.5;" disabled>Requires ${parent}</button>`;
-            disc = `<div style="font-size:0.7rem;color:red;margin-top:5px;">Available with ${parent}</div>`;
-          } else {
-            ci.parentProductName = parent;
-          }
-        }
-        return `<div class="h-card"><div style="font-weight:700;margin-bottom:10px;height:3em;overflow:hidden;">${n}</div><div class="price" style="font-size:1.2rem;margin-bottom:15px;">${pr ? cr + ' ' + pr : 'Free/Included'}</div>${btnH}${disc}</div>`;
+
+        return `<div class="h-card"><div style="font-weight:700;margin-bottom:10px;height:3em;overflow:hidden;">${n}</div><div class="price" style="font-size:1.2rem;margin-bottom:15px;">${pr ? cr + ' ' + pr : 'Free/Included'}</div>${btnH}</div>`;
       }).join('');
     } else {
       otherSec.style.display = "none";

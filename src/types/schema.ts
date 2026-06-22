@@ -94,8 +94,10 @@ export interface Product extends Thing {
   color?: string;
   hasVariant?: Product[];
   variesBy?: string[];
-  isLinkedAddon?: boolean;
-  parentProductName?: string;
+  isAccessoryOrSparePartFor?: Product[];
+  isConsumableFor?: Product[];
+  isRelatedTo?: Product | Service;
+  isSimilarTo?: Product | Service;
 }
 
 export interface ProductGroup extends Thing {
@@ -114,6 +116,8 @@ export interface Service extends Thing {
   areaServed?: string | Place | AdministrativeArea;
   offers?: Offer | Offer[];
   hasOfferCatalog?: OfferCatalog;
+  isRelatedTo?: Product | Service;
+  isSimilarTo?: Product | Service;
 }
 
 export interface Person extends Thing {
