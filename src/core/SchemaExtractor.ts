@@ -27,9 +27,10 @@ export class SchemaExtractor {
       try {
         return JSON.parse(cleaned) as T;
       } catch (e) {
+        // Fallback: search for multiple objects if JSON.parse fails (e.g. trailing characters)
         const objectMatch = cleaned.match(/\{[\s\S]*\}/);
         if (objectMatch) {
-          return JSON.parse(objectMatch[0]) as T;
+          try { return JSON.parse(objectMatch[0]) as T; } catch(e2) {}
         }
         return null;
       }
@@ -54,11 +55,18 @@ export class SchemaExtractor {
     return match || variants[0];
   }
 
+  static normalizeName(name: string): string {
+      return (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+
   static findMatchingServicePackage(parent: any, packageName: string): any {
       if (!parent?.hasOfferCatalog?.itemListElement) return null;
+      const normalizedSearch = this.normalizeName(packageName);
+
       return parent.hasOfferCatalog.itemListElement.find((off: any) => {
-          const name = off.itemOffered?.name || off.name;
-          return String(name) === String(packageName);
+          const item = off.itemOffered || off;
+          const name = item.name || off.name;
+          return this.normalizeName(name) === normalizedSearch;
       });
   }
 
@@ -69,5 +77,11 @@ export class SchemaExtractor {
       const currency = offer.priceCurrency || offer.itemOffered?.offers?.priceCurrency || offer.offers?.priceCurrency || "INR";
 
       return { price: String(price), currency: String(currency) };
+  }
+
+  static extractAvailability(offer: any): string {
+      if (!offer) return "https://schema.org/InStock";
+      const av = offer.availability || offer.itemOffered?.offers?.availability || offer.offers?.availability || "https://schema.org/InStock";
+      return String(av);
   }
 }

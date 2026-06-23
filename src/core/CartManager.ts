@@ -142,51 +142,59 @@ export class CartManager {
     if (!freshBaseData) {
       item.isUnavailable = true;
     } else {
-      let freshMatch = null;
       const cartItem = item.orderedItem;
+      const dataSources = Array.isArray(freshBaseData) ? freshBaseData : [freshBaseData];
+      let freshMatch = null;
 
-      // 1. Try to find in catalogs first (most specific for Services/Addons)
-      const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
-                          (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
-                          (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
+      for (const source of dataSources) {
+          // 1. Catalog Match (High Priority for Services)
+          const catalogSource = source.hasOfferCatalog ? source :
+                              (source.offers?.seller?.hasOfferCatalog ? source.offers.seller :
+                              (source.provider?.hasOfferCatalog ? source.provider : null));
 
-      if (catalogSource) {
-          const matchedPackage = SchemaExtractor.findMatchingServicePackage(catalogSource, cartItem.name);
-          if (matchedPackage) {
-              const { price, currency } = SchemaExtractor.extractPrice(matchedPackage);
-              freshMatch = {
-                  ...cartItem,
-                  ...(matchedPackage.itemOffered || matchedPackage),
-                  "@type": (matchedPackage.itemOffered?.["@type"] || matchedPackage["@type"] || cartItem["@type"]),
-                  offers: {
-                      "@type": "Offer",
-                      price,
-                      priceCurrency: currency,
-                      availability: matchedPackage.availability || matchedPackage.offers?.availability
-                  }
-              };
+          if (catalogSource) {
+              const matchedPackage = SchemaExtractor.findMatchingServicePackage(catalogSource, cartItem.name);
+              if (matchedPackage) {
+                  const { price, currency } = SchemaExtractor.extractPrice(matchedPackage);
+                  const availability = SchemaExtractor.extractAvailability(matchedPackage);
+                  freshMatch = {
+                      ...cartItem,
+                      ...(matchedPackage.itemOffered || matchedPackage),
+                      "@type": (matchedPackage.itemOffered?.["@type"] || matchedPackage["@type"] || cartItem["@type"]),
+                      offers: { "@type": "Offer", price, priceCurrency: currency, availability }
+                  };
+                  break;
+              }
           }
-      }
 
-      // 2. Try to find in variants if it's a Product
-      if (!freshMatch && cartItem["@type"] === "Product" && freshBaseData.hasVariant) {
-          freshMatch = SchemaExtractor.findMatchingVariant(freshBaseData, cartItem._selectedVariants || {});
-      }
+          // 2. Variant Match
+          if (cartItem["@type"] === "Product" && source.hasVariant) {
+              const variantMatch = SchemaExtractor.findMatchingVariant(source, cartItem._selectedVariants || {});
+              if (variantMatch) {
+                  freshMatch = variantMatch;
+                  break;
+              }
+          }
 
-      // 3. Fallback to top-level match
-      if (!freshMatch && (freshBaseData["@type"] === cartItem["@type"] || freshBaseData["@type"]?.includes(cartItem["@type"]))) {
-          freshMatch = freshBaseData;
+          // 3. Exact Type & Name/ID Match
+          const sourceId = source.sku || source.identifier || source.name;
+          const cartId = cartItem.sku || cartItem.identifier || cartItem.name;
+          if (source["@type"] === cartItem["@type"] && sourceId === cartId) {
+              freshMatch = source;
+              break;
+          }
       }
 
       if (freshMatch) {
           item.isUnavailable = false;
           const { price, currency } = SchemaExtractor.extractPrice(freshMatch.offers || freshMatch);
+          const availability = SchemaExtractor.extractAvailability(freshMatch.offers || freshMatch);
 
           item.orderedItem.offers = {
               "@type": "Offer",
               price: price,
               priceCurrency: currency,
-              availability: freshMatch.offers?.availability || "https://schema.org/InStock"
+              availability: availability
           };
           item.orderedItem.image = freshMatch.image || item.orderedItem.image;
           item.orderedItem.name = freshMatch.name || item.orderedItem.name;
