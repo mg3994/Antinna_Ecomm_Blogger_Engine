@@ -12,6 +12,7 @@ export class CartManager {
       totalPrice: 0,
       priceCurrency: "INR",
     };
+    this.deduplicate(); // Clean up potential legacy duplicates
   }
 
   private loadFromStorage(): Order | null {
@@ -27,6 +28,25 @@ export class CartManager {
   private saveToStorage(): void {
     this.calculateTotal();
     localStorage.setItem(this.storageKey, JSON.stringify(this.order));
+  }
+
+  private deduplicate(): void {
+      const uniqueItems: Record<string, any> = {};
+      const newOrderedItems: any[] = [];
+
+      this.order.orderedItem.forEach((item: any) => {
+          const key = item.itemKey || this.generateItemKey(item.orderedItem, item._selectedVariants);
+          if (uniqueItems[key]) {
+              uniqueItems[key].orderQuantity += item.orderQuantity;
+          } else {
+              item.itemKey = key;
+              uniqueItems[key] = item;
+              newOrderedItems.push(item);
+          }
+      });
+
+      this.order.orderedItem = newOrderedItems;
+      this.calculateTotal();
   }
 
   private calculateTotal(): void {
@@ -76,13 +96,22 @@ export class CartManager {
     this.saveToStorage();
   }
 
-  private generateItemKey(item: Product | Service, variants?: Record<string, string>): string {
-    let key = item.sku || (item as any).id || item.name || '';
+  private generateItemKey(item: Product | Service | any, variants?: Record<string, string>): string {
+    // 1. Base URL (clean without params)
+    let url = item.url || '';
+    if (url.includes('?')) url = url.split('?')[0];
+    if (url.includes('#')) url = url.split('#')[0];
+
+    // 2. Identification (SKU, Name, or ID)
+    let identifier = item.sku || item.id || item.name || '';
+
+    // 3. Configuration (Variants or Packages)
+    let config = '';
     if (variants) {
-      const vString = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
-      key += `|${vString}`;
+      config = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
     }
-    return key;
+
+    return `${url}::${identifier}::${config}`;
   }
 
   removeItem(index: number): void {

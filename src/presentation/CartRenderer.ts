@@ -1,5 +1,6 @@
 import { CartManager } from '../core/CartManager';
 import { UIManager } from './UIManager';
+import { SchemaExtractor } from '../core/SchemaExtractor';
 
 export class CartRenderer {
   constructor(private cartManager: CartManager) {}
@@ -41,6 +42,7 @@ export class CartRenderer {
       const isUnavailable = (item as any).isUnavailable;
       const opacity = isUnavailable ? '0.5' : '1';
       const statusText = isUnavailable ? '<div style="color:red; font-size:0.7rem; font-weight:800;">Currently Unavailable</div>' : '';
+      const { price, currency } = SchemaExtractor.extractPrice(item.orderedItem.offers);
 
       return `
         <div style="display:flex; gap:15px; padding:15px; border-bottom:1px solid rgba(0,0,0,0.05); align-items:center; opacity:${opacity};">
@@ -48,7 +50,7 @@ export class CartRenderer {
            <div style="flex:1;">
               <div style="font-weight:700;font-size:0.9rem;">${item.orderedItem.name}</div>
               ${statusText}
-              <div style="color:var(--accent); font-weight:800; font-size:0.85rem; margin-top:4px;">${(item.orderedItem.offers as any)?.priceCurrency || 'INR'} ${(item.orderedItem.offers as any)?.price || '0'}</div>
+              <div style="color:var(--accent); font-weight:800; font-size:0.85rem; margin-top:4px;">${currency} ${price}</div>
               <div style="display:flex; align-items:center; gap:12px; margin-top:10px;">
                  <button class="qty-btn" style="width:24px; height:24px; font-size:0.8rem;" ${isUnavailable ? 'disabled' : ''} onclick="CartManager.updateQty(${idx},-1); CartRenderer.showModal();">-</button>
                  <span style="font-weight:800;">${item.orderQuantity}</span>
