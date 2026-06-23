@@ -7,7 +7,6 @@ export class ProductRenderer {
   render(p: Product | ProductGroup | Service, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
     const variant = SchemaExtractor.findMatchingVariant(p, state.selectedVariants, state.lastClickedAttribute);
 
-    // Sync state back if we fell back to a default variant
     if (variant && (p as any).variesBy) {
         (p as any).variesBy.forEach((u: string) => {
           const a = u.split(/[\/#]/).pop() || '';
@@ -27,7 +26,8 @@ export class ProductRenderer {
     const offer = (variant.offers || p.offers) as Offer;
     const priceEl = UIManager.el("p-price");
     if (priceEl && offer) {
-      priceEl.textContent = (offer.priceCurrency || "INR") + " " + (offer.price || "0");
+      const { price, currency } = SchemaExtractor.extractPrice(offer);
+      priceEl.textContent = `${currency} ${price}`;
       priceEl.classList.toggle("blurry", offer.availability === "https://schema.org/OutOfStock");
     }
 
@@ -252,7 +252,11 @@ export class ProductRenderer {
         const ci = ser.itemOffered ? { ...ser.itemOffered } : (typeof ser === 'object' ? { ...ser } : { name: ser });
         if (!ci.offers) ci.offers = { "@type": "Offer", price: pr, priceCurrency: cr };
 
-        let btnH = `<button class="v-btn" style="width:100%;padding:10px;font-size:0.85rem;" onclick="CartManager.addItem(${JSON.stringify(ci).replace(/"/g, '&quot;')}, ${JSON.stringify(s).replace(/"/g, '&quot;')}); CartRenderer.updateUI();">Add Service</button>`;
+        // Ensure the service carries the parent's URL for future syncing
+        const url = p.url || window.location.href.split('?')[0].split('#')[0];
+        const itemWithUrl = { ...ci, url };
+
+        let btnH = `<button class="v-btn" style="width:100%;padding:10px;font-size:0.85rem;" onclick="CartManager.addItem(${JSON.stringify(itemWithUrl).replace(/"/g, '&quot;')}, ${JSON.stringify(s).replace(/"/g, '&quot;')}); CartRenderer.updateUI();">Add Service</button>`;
 
         return `<div class="h-card"><div style="font-weight:700;margin-bottom:10px;height:3em;overflow:hidden;">${n}</div><div class="price" style="font-size:1.2rem;margin-bottom:15px;">${pr ? cr + ' ' + pr : 'Free/Included'}</div>${btnH}</div>`;
       }).join('');

@@ -12,7 +12,7 @@ export class CartManager {
       totalPrice: 0,
       priceCurrency: "INR",
     };
-    this.deduplicate(); // Clean up potential legacy duplicates
+    this.deduplicate();
   }
 
   private loadFromStorage(): Order | null {
@@ -58,6 +58,11 @@ export class CartManager {
   }
 
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
+    // Ensure URL is present for syncing
+    if (!item.url) {
+        item.url = window.location.href.split('?')[0].split('#')[0];
+    }
+
     const itemKey = this.generateItemKey(item, selectedVariants);
 
     const existing = this.order.orderedItem.find(
@@ -84,7 +89,7 @@ export class CartManager {
           name: item.name,
           image: item.image,
           offers: item.offers,
-          url: (item as any).url,
+          url: item.url,
           ...specs,
           _selectedVariants: selectedVariants
         },
@@ -97,15 +102,11 @@ export class CartManager {
   }
 
   private generateItemKey(item: Product | Service | any, variants?: Record<string, string>): string {
-    // 1. Base URL (clean without params)
     let url = item.url || '';
     if (url.includes('?')) url = url.split('?')[0];
     if (url.includes('#')) url = url.split('#')[0];
 
-    // 2. Identification (SKU, Name, or ID)
     let identifier = item.sku || item.id || item.name || '';
-
-    // 3. Configuration (Variants or Packages)
     let config = '';
     if (variants) {
       config = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
@@ -143,10 +144,19 @@ export class CartManager {
 
       let freshItem = freshBaseData;
 
+      // Check if it's a ProductGroup/Product containing variants
       if (freshBaseData.hasVariant) {
           freshItem = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
-      } else if (freshBaseData.hasOfferCatalog) {
-          const matchingOffer = SchemaExtractor.findMatchingServicePackage(freshBaseData, item.orderedItem.name);
+      }
+
+      // If the fresh base data itself has an offer catalog (regardless of whether it's a Product or Service at top level)
+      // and our cart item matches an entry in that catalog.
+      const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
+                          (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
+                          (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
+
+      if (catalogSource) {
+          const matchingOffer = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
           if (matchingOffer) {
               const { price, currency } = SchemaExtractor.extractPrice(matchingOffer);
               freshItem = {
