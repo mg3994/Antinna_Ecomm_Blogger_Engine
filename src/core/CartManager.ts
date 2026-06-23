@@ -35,7 +35,7 @@ export class CartManager {
       const newOrderedItems: any[] = [];
 
       this.order.orderedItem.forEach((item: any) => {
-          const key = this.generateItemKey(item.orderedItem, item._selectedVariants);
+          const key = item.itemKey || this.generateItemKey(item.orderedItem, item._selectedVariants);
           if (uniqueItems[key]) {
               uniqueItems[key].orderQuantity += item.orderQuantity;
           } else {
@@ -84,7 +84,7 @@ export class CartManager {
       this.order.orderedItem.push({
         "@type": "OrderItem",
         orderedItem: {
-          "@type": item["@type"] || "Product", // PRESERVE TYPE
+          "@type": item["@type"] || (selectedVariants ? "Product" : "Service"),
           name: item.name,
           image: item.image,
           offers: item.offers,
@@ -104,18 +104,19 @@ export class CartManager {
     let url = item.url || '';
     if (url.includes('?')) url = url.split('?')[0];
     if (url.includes('#')) url = url.split('#')[0];
-    url = url.toLowerCase().replace(/\/$/, ""); // STRICT NORMALIZATION
+    url = url.toLowerCase().replace(/\/$/, "");
 
     const type = item["@type"] || "Product";
-    const identifier = item.sku || item.id || item.name || '';
+    const name = item.name || '';
+    const sku = item.sku || '';
 
     let config = '';
     if (variants) {
       config = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
     }
 
-    // Include TYPE in the key to distinguish Product vs Service with same name/URL
-    return `${url}::${type}::${identifier}::${config}`;
+    // Stable unique key: URL + Type + Name (or SKU) + Config
+    return `${url}::${type}::${sku || name}::${config}`;
   }
 
   removeItem(index: number): void {
@@ -145,34 +146,50 @@ export class CartManager {
     } else {
       item.isUnavailable = false;
 
-      let freshItem = freshBaseData;
+      const cartItemType = item.orderedItem["@type"];
+      let freshMatch = null;
 
-      if (freshBaseData.hasVariant) {
-          freshItem = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
+      // Case 1: Cart item is a specific variant of a ProductGroup
+      if (cartItemType === "Product" && freshBaseData.hasVariant) {
+          freshMatch = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
       }
 
-      const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
-                          (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
-                          (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
+      // Case 2: Cart item is a Service from an OfferCatalog (even if base is a Product)
+      if (cartItemType === "Service") {
+          const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
+                              (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
+                              (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
 
-      if (catalogSource) {
-          const matchingOffer = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
-          if (matchingOffer) {
-              const { price, currency } = SchemaExtractor.extractPrice(matchingOffer);
-              freshItem = {
-                  ...item.orderedItem,
-                  offers: {
-                      "@type": "Offer",
-                      price: price,
-                      priceCurrency: currency
-                  }
-              };
+          if (catalogSource) {
+              const matchingOffer = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
+              if (matchingOffer) {
+                  const { price, currency } = SchemaExtractor.extractPrice(matchingOffer);
+                  freshMatch = {
+                      ...item.orderedItem,
+                      "@type": "Service",
+                      offers: { "@type": "Offer", price, priceCurrency: currency }
+                  };
+              }
           }
       }
 
-      item.orderedItem.offers = freshItem.offers || item.orderedItem.offers;
-      item.orderedItem.image = freshItem.image || item.orderedItem.image;
-      item.orderedItem.name = freshItem.name || item.orderedItem.name;
+      // Case 3: Simple top-level match (only if type matches)
+      if (!freshMatch && freshBaseData["@type"] === cartItemType) {
+          freshMatch = freshBaseData;
+      }
+
+      if (freshMatch) {
+          item.orderedItem.offers = freshMatch.offers || item.orderedItem.offers;
+          item.orderedItem.image = freshMatch.image || item.orderedItem.image;
+          item.orderedItem.name = freshMatch.name || item.orderedItem.name;
+          // Ensure type is never overwritten
+          item.orderedItem["@type"] = cartItemType;
+      } else {
+          // If no specific match found for a service/variant, mark unavailable
+          if (cartItemType === "Service" || item.orderedItem._selectedVariants) {
+              item.isUnavailable = true;
+          }
+      }
     }
     this.saveToStorage();
   }

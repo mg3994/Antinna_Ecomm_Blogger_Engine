@@ -32,6 +32,7 @@ describe('CartManager', () => {
 
   it('should add item and calculate total', () => {
     cart.addItem({
+      "@type": "Product",
       name: 'Item 1',
       offers: { price: 100, priceCurrency: 'INR' },
       url: 'http://test.com/p1'
@@ -42,22 +43,21 @@ describe('CartManager', () => {
   });
 
   it('should increment quantity for same item with different prices (merging)', () => {
-    const item1 = { name: 'Item 1', offers: { price: 100 }, url: 'http://test.com/p1' } as any;
-    const item2 = { name: 'Item 1', offers: { price: 120 }, url: 'http://test.com/p1' } as any;
+    const item1 = { "@type": "Product", name: 'Item 1', offers: { price: 100 }, url: 'http://test.com/p1' } as any;
+    const item2 = { "@type": "Product", name: 'Item 1', offers: { price: 120 }, url: 'http://test.com/p1' } as any;
 
     cart.addItem(item1);
     cart.addItem(item2);
 
     expect(cart.getOrder().orderedItem.length).toBe(1);
     expect(cart.getTotalQuantity()).toBe(2);
-    // Note: It uses the first price since it was already in cart, but refresh logic would update it later
   });
 
   it('should update price in place and not duplicate during refresh', () => {
-    const item = { name: 'Item 1', offers: { price: 100 }, url: 'http://test.com/p1' } as any;
+    const item = { "@type": "Product", name: 'Item 1', offers: { price: 100 }, url: 'http://test.com/p1' } as any;
     cart.addItem(item);
 
-    const freshData = { name: 'Item 1', offers: { price: 150 }, url: 'http://test.com/p1' } as any;
+    const freshData = { "@type": "Product", name: 'Item 1', offers: { price: 150 }, url: 'http://test.com/p1' } as any;
     cart.updateItemDetails(0, freshData);
 
     expect(cart.getOrder().orderedItem.length).toBe(1);
@@ -65,7 +65,7 @@ describe('CartManager', () => {
   });
 
   it('should handle variants correctly and distinguish them', () => {
-    const base = { name: 'Phone', url: 'http://test.com/phone' };
+    const base = { "@type": "Product", name: 'Phone', url: 'http://test.com/phone' };
     const v1 = { ...base, color: 'Red', offers: { price: 500 } } as any;
     const v2 = { ...base, color: 'Blue', offers: { price: 500 } } as any;
 
