@@ -147,13 +147,10 @@ export class CartManager {
       let freshMatch = null;
 
       for (const source of dataSources) {
-          // 1. Catalog Match (High Priority for Services)
-          const catalogSource = source.hasOfferCatalog ? source :
-                              (source.offers?.seller?.hasOfferCatalog ? source.offers.seller :
-                              (source.provider?.hasOfferCatalog ? source.provider : null));
-
-          if (catalogSource) {
-              const matchedPackage = SchemaExtractor.findMatchingServicePackage(catalogSource, cartItem.name);
+          // 1. SEARCH ALL CATALOGS (Deep traversal)
+          const allCatalogs = SchemaExtractor.findAllCatalogs(source);
+          for (const catalog of allCatalogs) {
+              const matchedPackage = SchemaExtractor.findMatchingServicePackage({ hasOfferCatalog: catalog }, cartItem.name);
               if (matchedPackage) {
                   const { price, currency } = SchemaExtractor.extractPrice(matchedPackage);
                   const availability = SchemaExtractor.extractAvailability(matchedPackage);
@@ -166,6 +163,7 @@ export class CartManager {
                   break;
               }
           }
+          if (freshMatch) break;
 
           // 2. Variant Match
           if (cartItem["@type"] === "Product" && source.hasVariant) {

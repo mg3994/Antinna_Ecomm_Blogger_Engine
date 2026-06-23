@@ -27,7 +27,6 @@ export class SchemaExtractor {
       try {
         return JSON.parse(cleaned) as T;
       } catch (e) {
-        // Fallback: search for multiple objects if JSON.parse fails (e.g. trailing characters)
         const objectMatch = cleaned.match(/\{[\s\S]*\}/);
         if (objectMatch) {
           try { return JSON.parse(objectMatch[0]) as T; } catch(e2) {}
@@ -68,6 +67,27 @@ export class SchemaExtractor {
           const name = item.name || off.name;
           return this.normalizeName(name) === normalizedSearch;
       });
+  }
+
+  static findAllCatalogs(obj: any, results: any[] = []): any[] {
+      if (!obj || typeof obj !== 'object') return results;
+
+      if (obj.hasOfferCatalog) {
+          results.push(obj.hasOfferCatalog);
+      }
+
+      // Recursive search
+      if (Array.isArray(obj)) {
+          obj.forEach(item => this.findAllCatalogs(item, results));
+      } else {
+          Object.values(obj).forEach(val => {
+              if (val && typeof val === 'object') {
+                  this.findAllCatalogs(val, results);
+              }
+          });
+      }
+
+      return results;
   }
 
   static extractPrice(offer: any): { price: string, currency: string } {
