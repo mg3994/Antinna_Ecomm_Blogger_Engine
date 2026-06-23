@@ -58,11 +58,11 @@ export class CartManager {
   }
 
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
-    if (!item.url) {
-        item.url = window.location.href.split('?')[0].split('#')[0];
-    }
+    // 1. Ensure URL is present
+    const url = item.url || window.location.href.split('?')[0].split('#')[0];
 
-    const itemKey = this.generateItemKey(item, selectedVariants);
+    // 2. Generate key using DEEP COPY logic if needed, but generateItemKey handles it
+    const itemKey = this.generateItemKey({ ...item, url }, selectedVariants);
 
     const existing = this.order.orderedItem.find(
       (oi) => (oi as any).itemKey === itemKey
@@ -81,19 +81,18 @@ export class CartManager {
         if ((item as any)[field]) specs[field] = (item as any)[field];
       });
 
+      // 3. Create a DEEP COPY of the item to prevent reference leakage
+      const itemCopy = JSON.parse(JSON.stringify(item));
+
       this.order.orderedItem.push({
         "@type": "OrderItem",
         orderedItem: {
-          "@type": item["@type"] || (selectedVariants ? "Product" : "Service"),
-          name: item.name,
-          image: item.image,
-          offers: item.offers,
-          url: item.url,
-          ...specs,
-          _selectedVariants: selectedVariants
+          ...itemCopy,
+          url: url,
+          _selectedVariants: selectedVariants ? { ...selectedVariants } : undefined
         },
         orderQuantity: 1,
-        seller: seller,
+        seller: seller ? JSON.parse(JSON.stringify(seller)) : undefined,
         itemKey: itemKey
       } as any);
     }
@@ -110,13 +109,14 @@ export class CartManager {
     const name = item.name || '';
     const sku = item.sku || '';
 
-    let config = '';
+    // For ProductGroups, the combination of attributes makes the variant unique
+    let variantString = '';
     if (variants) {
-      config = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
+      const sortedKeys = Object.keys(variants).sort();
+      variantString = sortedKeys.map(k => `${k}:${variants[k]}`).join('|');
     }
 
-    // Stable unique key: URL + Type + Name (or SKU) + Config
-    return `${url}::${type}::${sku || name}::${config}`;
+    return `${url}::${type}::${sku}::${name}::${variantString}`;
   }
 
   removeItem(index: number): void {
@@ -149,12 +149,10 @@ export class CartManager {
       const cartItemType = item.orderedItem["@type"];
       let freshMatch = null;
 
-      // Case 1: Cart item is a specific variant of a ProductGroup
       if (cartItemType === "Product" && freshBaseData.hasVariant) {
           freshMatch = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
       }
 
-      // Case 2: Cart item is a Service from an OfferCatalog (even if base is a Product)
       if (cartItemType === "Service") {
           const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
                               (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
@@ -173,19 +171,22 @@ export class CartManager {
           }
       }
 
-      // Case 3: Simple top-level match (only if type matches)
       if (!freshMatch && freshBaseData["@type"] === cartItemType) {
           freshMatch = freshBaseData;
       }
 
       if (freshMatch) {
-          item.orderedItem.offers = freshMatch.offers || item.orderedItem.offers;
+          const { price, currency } = SchemaExtractor.extractPrice(freshMatch.offers);
+          item.orderedItem.offers = {
+              "@type": "Offer",
+              price: price,
+              priceCurrency: currency,
+              availability: freshMatch.offers?.availability
+          };
           item.orderedItem.image = freshMatch.image || item.orderedItem.image;
           item.orderedItem.name = freshMatch.name || item.orderedItem.name;
-          // Ensure type is never overwritten
           item.orderedItem["@type"] = cartItemType;
       } else {
-          // If no specific match found for a service/variant, mark unavailable
           if (cartItemType === "Service" || item.orderedItem._selectedVariants) {
               item.isUnavailable = true;
           }
