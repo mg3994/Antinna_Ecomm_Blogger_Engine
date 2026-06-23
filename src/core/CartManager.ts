@@ -1,4 +1,5 @@
 import { Order, OrderItem, Product, Service, Organization, Offer } from '../types/schema';
+import { SchemaExtractor } from './SchemaExtractor';
 
 export class CartManager {
   private order: Order;
@@ -37,7 +38,6 @@ export class CartManager {
   }
 
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
-    // Generate a unique key for this specific variant/service
     const itemKey = this.generateItemKey(item, selectedVariants);
 
     const existing = this.order.orderedItem.find(
@@ -64,20 +64,21 @@ export class CartManager {
           name: item.name,
           image: item.image,
           offers: item.offers,
-          url: item.url,
+          url: (item as any).url,
           ...specs,
-          ...selectedVariants // Save explicit variant selection
+          _selectedVariants: selectedVariants // Internal tracking for refresh
         },
         orderQuantity: 1,
         seller: seller,
-        itemKey: itemKey // Custom property for identification
+        itemKey: itemKey
       } as any);
     }
     this.saveToStorage();
   }
 
   private generateItemKey(item: Product | Service, variants?: Record<string, string>): string {
-    let key = item.sku || item.name || '';
+    // Priority: SKU > ID > Name
+    let key = item.sku || (item as any).id || item.name || '';
     if (variants) {
       const vString = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
       key += `|${vString}`;
@@ -88,7 +89,6 @@ export class CartManager {
   removeItem(index: number): void {
     const item = this.order.orderedItem[index];
     if (!item) return;
-
     this.order.orderedItem.splice(index, 1);
     this.saveToStorage();
   }
@@ -96,7 +96,6 @@ export class CartManager {
   updateQty(index: number, delta: number): void {
     const item = this.order.orderedItem[index];
     if (!item) return;
-
     item.orderQuantity += delta;
     if (item.orderQuantity <= 0) {
       this.removeItem(index);
@@ -114,24 +113,12 @@ export class CartManager {
     } else {
       item.isUnavailable = false;
 
-      // Find the specific variant in the fresh data
       let freshItem = freshBaseData;
 
-      // If it's a ProductGroup, find matching variant
       if (freshBaseData.hasVariant) {
-        freshItem = freshBaseData.hasVariant.find((v: any) => {
-          return Object.entries(item.orderedItem).every(([k, val]) => {
-            if (['@type', 'name', 'offers', 'image', 'url'].includes(k)) return true;
-            return v[k] === val;
-          });
-        }) || freshBaseData.hasVariant[0];
-      }
-      // If it's a Service with an OfferCatalog, find matching offer
-      else if (freshBaseData.hasOfferCatalog) {
-          const matchingOffer = freshBaseData.hasOfferCatalog.itemListElement.find((off: any) => {
-              const name = off.itemOffered?.name || off.name;
-              return name === item.orderedItem.name;
-          });
+          freshItem = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
+      } else if (freshBaseData.hasOfferCatalog) {
+          const matchingOffer = SchemaExtractor.findMatchingServicePackage(freshBaseData, item.orderedItem.name);
           if (matchingOffer) {
               freshItem = {
                   ...item.orderedItem,
@@ -146,7 +133,7 @@ export class CartManager {
 
       item.orderedItem.offers = freshItem.offers || item.orderedItem.offers;
       item.orderedItem.image = freshItem.image || item.orderedItem.image;
-      // Don't update name for variants as we want to keep the specific variant name if set
+      item.orderedItem.name = freshItem.name || item.orderedItem.name;
     }
     this.saveToStorage();
   }

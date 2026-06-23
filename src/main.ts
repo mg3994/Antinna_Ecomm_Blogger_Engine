@@ -222,9 +222,7 @@ export class App {
     const p = this.state.product as any;
     if (!p) return;
 
-    let variant = p.hasVariant
-      ? p.hasVariant.find((x: any) => Object.entries(this.state.selectedVariants).every(([k, v]) => x[k] === v)) || p.hasVariant[0]
-      : p;
+    let variant = SchemaExtractor.findMatchingVariant(p, this.state.selectedVariants, this.state.lastClickedAttribute);
 
     if (this.state.selectedPackage) {
       variant = {

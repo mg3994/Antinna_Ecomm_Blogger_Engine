@@ -1,23 +1,18 @@
 import { Product, ProductGroup, Service, Offer, Organization } from '../types/schema';
 import { AppState } from '../types/app';
 import { UIManager } from './UIManager';
+import { SchemaExtractor } from '../core/SchemaExtractor';
 
 export class ProductRenderer {
   render(p: Product | ProductGroup | Service, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
-    const variants = (p as any).hasVariant || [p];
+    const variant = SchemaExtractor.findMatchingVariant(p, state.selectedVariants, state.lastClickedAttribute);
 
-    let variant = variants.find((v: any) =>
-      Object.entries(state.selectedVariants).every(([k, val]) => v[k] === val)
-    );
-
-    if (!variant) {
-      variant = variants.find((v: any) => v[state.lastClickedAttribute || ''] === state.selectedVariants[state.lastClickedAttribute || '']) || variants[0];
-      if ((p as any).variesBy) {
+    // Sync state back if we fell back to a default variant
+    if (variant && (p as any).variesBy) {
         (p as any).variesBy.forEach((u: string) => {
           const a = u.split(/[\/#]/).pop() || '';
-          if (variant[a]) state.selectedVariants[a] = variant[a];
+          if (variant[a]) state.selectedVariants[a] = String(variant[a]);
         });
-      }
     }
 
     UIManager.setContent("p-name", variant.name || p.name);
@@ -126,7 +121,7 @@ export class ProductRenderer {
             btn.dataset.val = String(vl);
             if (a.toLowerCase() === "color") {
               btn.classList.add("v-color");
-              const vm = p.hasVariant.find((x: any) => x[a] === vl);
+              const vm = p.hasVariant.find((x: any) => String(x[a]) === String(vl));
               const vi = vm && (Array.isArray(vm.image) ? vm.image[0] : vm.image);
               if (vi) {
                 const url = vi.url || vi;
@@ -184,7 +179,7 @@ export class ProductRenderer {
       const v = btn.dataset.val || '';
       const test = { ...state.selectedVariants, [a]: v };
       const match = p.hasVariant.find((x: any) =>
-        Object.entries(test).every(([k, val]) => !x[k] || x[k] === val)
+        Object.entries(test).every(([k, val]) => !x[k] || String(x[k]) === String(val))
       );
       const out = match && match.offers && match.offers.availability === 'https://schema.org/OutOfStock';
       btn.style.opacity = !match ? '0.3' : (out ? '0.6' : '1');
