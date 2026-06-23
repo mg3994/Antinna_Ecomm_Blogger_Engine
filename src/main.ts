@@ -180,20 +180,29 @@ export class App {
   }
 
   public async refreshCartData(): Promise<void> {
-    const order = this.CartManager.getOrder();
-    const { entries } = await this.BloggerDataService.fetchFeedData(100, 1);
+    this.CartRenderer.setLoading(true);
+    try {
+        const order = this.CartManager.getOrder();
+        const { entries } = await this.BloggerDataService.fetchFeedData(100, 1);
 
-    order.orderedItem.forEach((item, idx) => {
-      const url = (item.orderedItem as any).url;
-      if (!url) return;
+        order.orderedItem.forEach((item, idx) => {
+          const url = (item.orderedItem as any).url;
+          if (!url) return;
 
-      const entry = entries.find(e => e.link.some((l: any) => l.rel === "alternate" && l.href.includes(url)));
-      const data = entry ? this.BloggerDataService.extractSchemaFromEntry(entry) : null;
+          const entry = entries.find(e => {
+              const alternateLink = e.link.find((l: any) => l.rel === "alternate")?.href || "";
+              return alternateLink.toLowerCase().includes(url.toLowerCase().split('?')[0].split('#')[0]);
+          });
 
-      this.CartManager.updateItemDetails(idx, data);
-    });
-
-    this.CartRenderer.showModal();
+          const data = entry ? this.BloggerDataService.extractSchemaFromEntry(entry) : null;
+          this.CartManager.updateItemDetails(idx, data);
+        });
+    } catch (e) {
+        console.error("Refresh failed", e);
+    } finally {
+        this.CartRenderer.setLoading(false);
+        this.CartRenderer.showModal();
+    }
   }
 
   private renderGridCard(card: HTMLElement, data: any): void {
@@ -206,7 +215,8 @@ export class App {
 
     const variant = data.hasVariant ? data.hasVariant[0] : data;
     if (variant.offers && price) {
-      price.textContent = (variant.offers.priceCurrency || "INR") + " " + (variant.offers.price || "");
+      const { price: p, currency } = SchemaExtractor.extractPrice(variant.offers);
+      price.textContent = `${currency} ${p}`;
     }
 
     const imgs = Array.isArray(data.image) ? data.image : [data.image];

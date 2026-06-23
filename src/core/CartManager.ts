@@ -58,11 +58,11 @@ export class CartManager {
   }
 
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
-    // 1. Ensure URL is present
-    const url = item.url || window.location.href.split('?')[0].split('#')[0];
+    if (!item.url) {
+        item.url = window.location.href.split('?')[0].split('#')[0];
+    }
 
-    // 2. Generate key using DEEP COPY logic if needed, but generateItemKey handles it
-    const itemKey = this.generateItemKey({ ...item, url }, selectedVariants);
+    const itemKey = this.generateItemKey(item, selectedVariants);
 
     const existing = this.order.orderedItem.find(
       (oi) => (oi as any).itemKey === itemKey
@@ -81,14 +81,13 @@ export class CartManager {
         if ((item as any)[field]) specs[field] = (item as any)[field];
       });
 
-      // 3. Create a DEEP COPY of the item to prevent reference leakage
       const itemCopy = JSON.parse(JSON.stringify(item));
 
       this.order.orderedItem.push({
         "@type": "OrderItem",
         orderedItem: {
           ...itemCopy,
-          url: url,
+          url: item.url,
           _selectedVariants: selectedVariants ? { ...selectedVariants } : undefined
         },
         orderQuantity: 1,
@@ -109,7 +108,6 @@ export class CartManager {
     const name = item.name || '';
     const sku = item.sku || '';
 
-    // For ProductGroups, the combination of attributes makes the variant unique
     let variantString = '';
     if (variants) {
       const sortedKeys = Object.keys(variants).sort();
@@ -144,8 +142,6 @@ export class CartManager {
     if (!freshBaseData) {
       item.isUnavailable = true;
     } else {
-      item.isUnavailable = false;
-
       const cartItemType = item.orderedItem["@type"];
       let freshMatch = null;
 
@@ -159,9 +155,9 @@ export class CartManager {
                               (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
 
           if (catalogSource) {
-              const matchingOffer = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
-              if (matchingOffer) {
-                  const { price, currency } = SchemaExtractor.extractPrice(matchingOffer);
+              freshMatch = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
+              if (freshMatch) {
+                  const { price, currency } = SchemaExtractor.extractPrice(freshMatch);
                   freshMatch = {
                       ...item.orderedItem,
                       "@type": "Service",
@@ -171,25 +167,24 @@ export class CartManager {
           }
       }
 
-      if (!freshMatch && freshBaseData["@type"] === cartItemType) {
+      if (!freshMatch && (freshBaseData["@type"] === cartItemType || freshBaseData["@type"]?.includes(cartItemType))) {
           freshMatch = freshBaseData;
       }
 
       if (freshMatch) {
-          const { price, currency } = SchemaExtractor.extractPrice(freshMatch.offers);
+          item.isUnavailable = false; // RESET availability if match found
+          const { price, currency } = SchemaExtractor.extractPrice(freshMatch.offers || freshMatch);
           item.orderedItem.offers = {
               "@type": "Offer",
               price: price,
               priceCurrency: currency,
-              availability: freshMatch.offers?.availability
+              availability: freshMatch.offers?.availability || "https://schema.org/InStock"
           };
           item.orderedItem.image = freshMatch.image || item.orderedItem.image;
           item.orderedItem.name = freshMatch.name || item.orderedItem.name;
           item.orderedItem["@type"] = cartItemType;
       } else {
-          if (cartItemType === "Service" || item.orderedItem._selectedVariants) {
-              item.isUnavailable = true;
-          }
+          item.isUnavailable = true;
       }
     }
     this.saveToStorage();
