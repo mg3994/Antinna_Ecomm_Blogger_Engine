@@ -32,8 +32,8 @@ export class CartManager {
   private calculateTotal(): void {
     this.order.totalPrice = this.order.orderedItem.reduce((sum, item) => {
       if ((item as any).isUnavailable) return sum;
-      const price = parseFloat(String((item.orderedItem.offers as Offer)?.price || 0));
-      return sum + (price * item.orderQuantity);
+      const { price } = SchemaExtractor.extractPrice(item.orderedItem.offers);
+      return sum + (parseFloat(price) * item.orderQuantity);
     }, 0);
   }
 
@@ -66,7 +66,7 @@ export class CartManager {
           offers: item.offers,
           url: (item as any).url,
           ...specs,
-          _selectedVariants: selectedVariants // Internal tracking for refresh
+          _selectedVariants: selectedVariants
         },
         orderQuantity: 1,
         seller: seller,
@@ -77,7 +77,6 @@ export class CartManager {
   }
 
   private generateItemKey(item: Product | Service, variants?: Record<string, string>): string {
-    // Priority: SKU > ID > Name
     let key = item.sku || (item as any).id || item.name || '';
     if (variants) {
       const vString = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
@@ -120,12 +119,13 @@ export class CartManager {
       } else if (freshBaseData.hasOfferCatalog) {
           const matchingOffer = SchemaExtractor.findMatchingServicePackage(freshBaseData, item.orderedItem.name);
           if (matchingOffer) {
+              const { price, currency } = SchemaExtractor.extractPrice(matchingOffer);
               freshItem = {
                   ...item.orderedItem,
                   offers: {
                       "@type": "Offer",
-                      price: matchingOffer.price,
-                      priceCurrency: matchingOffer.priceCurrency
+                      price: price,
+                      priceCurrency: currency
                   }
               };
           }

@@ -43,17 +43,14 @@ export class SchemaExtractor {
     if (!parent) return null;
     const variants = parent.hasVariant || [parent];
 
-    // 1. Try exact match for all selected attributes
     let match = variants.find((v: any) =>
       Object.entries(selectedAttributes).every(([k, val]) => String(v[k]) === String(val))
     );
 
-    // 2. Fallback: Match based on the last clicked attribute if no exact match for all
     if (!match && lastClickedAttr) {
       match = variants.find((v: any) => String(v[lastClickedAttr]) === String(selectedAttributes[lastClickedAttr]));
     }
 
-    // 3. Last fallback: return the first variant
     return match || variants[0];
   }
 
@@ -63,5 +60,14 @@ export class SchemaExtractor {
           const name = off.itemOffered?.name || off.name;
           return String(name) === String(packageName);
       });
+  }
+
+  static extractPrice(offer: any): { price: string, currency: string } {
+      if (!offer) return { price: "0", currency: "INR" };
+
+      const price = offer.price || offer.itemOffered?.offers?.price || offer.offers?.price || "0";
+      const currency = offer.priceCurrency || offer.itemOffered?.offers?.priceCurrency || offer.offers?.priceCurrency || "INR";
+
+      return { price: String(price), currency: String(currency) };
   }
 }
