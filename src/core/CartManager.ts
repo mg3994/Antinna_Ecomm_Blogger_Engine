@@ -30,6 +30,7 @@ export class CartManager {
 
   private calculateTotal(): void {
     this.order.totalPrice = this.order.orderedItem.reduce((sum, item) => {
+      if ((item as any).isUnavailable) return sum;
       const price = parseFloat(String((item.orderedItem.offers as Offer)?.price || 0));
       return sum + (price * item.orderQuantity);
     }, 0);
@@ -60,6 +61,7 @@ export class CartManager {
           name: item.name,
           image: item.image,
           offers: item.offers,
+          url: item.url, // Save URL for future refreshing
           ...specs
         },
         orderQuantity: 1,
@@ -87,6 +89,21 @@ export class CartManager {
     } else {
       this.saveToStorage();
     }
+  }
+
+  updateItemDetails(index: number, freshData: Product | Service | null): void {
+    const item = this.order.orderedItem[index];
+    if (!item) return;
+
+    if (!freshData) {
+      (item as any).isUnavailable = true;
+    } else {
+      (item as any).isUnavailable = false;
+      item.orderedItem.offers = freshData.offers;
+      item.orderedItem.image = freshData.image;
+      item.orderedItem.name = freshData.name;
+    }
+    this.saveToStorage();
   }
 
   getOrder(): Order {

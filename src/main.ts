@@ -51,6 +51,7 @@ export class App {
     (window as any).syncDots = (el: HTMLElement) => this.syncDots(el);
     (window as any).showToast = (m: string, t: 'success' | 'error') => UIManager.showToast(m, t);
     (window as any).loadMorePosts = () => this.loadMorePosts();
+    (window as any).refreshCartData = () => this.refreshCartData();
   }
 
   private init(): void {
@@ -69,6 +70,7 @@ export class App {
     const addBtn = UIManager.el("add-to-cart-btn");
     const searchForm = UIManager.el<HTMLFormElement>("search-form");
     const confirmBtn = UIManager.el("cart-confirm-btn");
+    const cartFab = UIManager.el("cart-fab");
 
     if (qtyPlus) qtyPlus.onclick = () => {
       this.state.quantity++;
@@ -178,6 +180,23 @@ export class App {
     }
   }
 
+  public async refreshCartData(): Promise<void> {
+    const order = this.CartManager.getOrder();
+    const { entries } = await this.BloggerDataService.fetchFeedData(100, 1);
+
+    order.orderedItem.forEach((item, idx) => {
+      const url = item.orderedItem.url;
+      if (!url) return;
+
+      const entry = entries.find(e => e.link.some((l: any) => l.rel === "alternate" && l.href.includes(url)));
+      const data = entry ? this.BloggerDataService.extractSchemaFromEntry(entry) : null;
+
+      this.CartManager.updateItemDetails(idx, data);
+    });
+
+    this.CartRenderer.showModal();
+  }
+
   private renderGridCard(card: HTMLElement, data: any): void {
     const badge = card.querySelector(".card-badge");
     const price = card.querySelector(".card-price");
@@ -219,8 +238,11 @@ export class App {
       };
     }
 
+    // Include the current URL in the variant for cart refreshing
+    const itemToStore = { ...variant, url: window.location.href.split('?')[0].split('#')[0] };
+
     for (let i = 0; i < this.state.quantity; i++) {
-      this.CartManager.addItem(variant, variant.offers?.seller || p.seller || p.provider);
+      this.CartManager.addItem(itemToStore, itemToStore.offers?.seller || p.seller || p.provider);
     }
     this.CartRenderer.updateUI();
     UIManager.showToast("Added to Bag", "success");
