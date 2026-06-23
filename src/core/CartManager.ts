@@ -35,7 +35,7 @@ export class CartManager {
       const newOrderedItems: any[] = [];
 
       this.order.orderedItem.forEach((item: any) => {
-          const key = item.itemKey || this.generateItemKey(item.orderedItem, item._selectedVariants);
+          const key = this.generateItemKey(item.orderedItem, item._selectedVariants);
           if (uniqueItems[key]) {
               uniqueItems[key].orderQuantity += item.orderQuantity;
           } else {
@@ -58,7 +58,6 @@ export class CartManager {
   }
 
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
-    // Ensure URL is present for syncing
     if (!item.url) {
         item.url = window.location.href.split('?')[0].split('#')[0];
     }
@@ -85,7 +84,7 @@ export class CartManager {
       this.order.orderedItem.push({
         "@type": "OrderItem",
         orderedItem: {
-          "@type": item["@type"] || "Product",
+          "@type": item["@type"] || "Product", // PRESERVE TYPE
           name: item.name,
           image: item.image,
           offers: item.offers,
@@ -105,14 +104,18 @@ export class CartManager {
     let url = item.url || '';
     if (url.includes('?')) url = url.split('?')[0];
     if (url.includes('#')) url = url.split('#')[0];
+    url = url.toLowerCase().replace(/\/$/, ""); // STRICT NORMALIZATION
 
-    let identifier = item.sku || item.id || item.name || '';
+    const type = item["@type"] || "Product";
+    const identifier = item.sku || item.id || item.name || '';
+
     let config = '';
     if (variants) {
       config = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
     }
 
-    return `${url}::${identifier}::${config}`;
+    // Include TYPE in the key to distinguish Product vs Service with same name/URL
+    return `${url}::${type}::${identifier}::${config}`;
   }
 
   removeItem(index: number): void {
@@ -144,13 +147,10 @@ export class CartManager {
 
       let freshItem = freshBaseData;
 
-      // Check if it's a ProductGroup/Product containing variants
       if (freshBaseData.hasVariant) {
           freshItem = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
       }
 
-      // If the fresh base data itself has an offer catalog (regardless of whether it's a Product or Service at top level)
-      // and our cart item matches an entry in that catalog.
       const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
                           (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
                           (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));

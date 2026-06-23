@@ -250,9 +250,11 @@ export class ProductRenderer {
         const pr = ser.price || ser.itemOffered?.offers?.price || '';
         const cr = ser.priceCurrency || 'INR';
         const ci = ser.itemOffered ? { ...ser.itemOffered } : (typeof ser === 'object' ? { ...ser } : { name: ser });
+
+        // EXPLICITLY set @type to Service for catalog items
+        if (!ci["@type"]) ci["@type"] = "Service";
         if (!ci.offers) ci.offers = { "@type": "Offer", price: pr, priceCurrency: cr };
 
-        // Ensure the service carries the parent's URL for future syncing
         const url = p.url || window.location.href.split('?')[0].split('#')[0];
         const itemWithUrl = { ...ci, url };
 
