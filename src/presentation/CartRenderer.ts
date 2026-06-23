@@ -16,7 +16,6 @@ export class CartRenderer {
       fab.className = "cart-fab";
       fab.onclick = () => (window as any).AntinnaEngine.refreshCartData();
 
-      // CSS for Spinner
       const style = document.createElement('style');
       style.textContent = `
         .cart-fab { position: fixed; bottom: 30px; right: 30px; z-index: 1000; transition: transform 0.3s; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -64,8 +63,16 @@ export class CartRenderer {
     const order = this.cartManager.getOrder();
     list.innerHTML = order.orderedItem.map((item, idx) => {
       const isUnavailable = (item as any).isUnavailable;
-      const opacity = isUnavailable ? '0.5' : '1';
-      const statusText = isUnavailable ? '<div style="color:red; font-size:0.7rem; font-weight:800;">Currently Unavailable</div>' : '';
+      const availability = SchemaExtractor.extractAvailability(item.orderedItem.offers);
+      const isOutOfStock = availability === "https://schema.org/OutOfStock" || availability === "https://schema.org/SoldOut";
+
+      const isOrderable = !isUnavailable && !isOutOfStock;
+      const opacity = isOrderable ? '1' : '0.5';
+
+      let statusText = '';
+      if (isUnavailable) statusText = '<div style="color:red; font-size:0.7rem; font-weight:800;">Currently Unavailable</div>';
+      else if (isOutOfStock) statusText = '<div style="color:orange; font-size:0.7rem; font-weight:800;">Out of Stock</div>';
+
       const { price, currency } = SchemaExtractor.extractPrice(item.orderedItem.offers);
 
       return `
@@ -76,9 +83,9 @@ export class CartRenderer {
               ${statusText}
               <div style="color:var(--accent); font-weight:800; font-size:0.85rem; margin-top:4px;">${currency} ${price}</div>
               <div style="display:flex; align-items:center; gap:12px; margin-top:10px;">
-                 <button class="qty-btn" style="width:24px; height:24px; font-size:0.8rem;" ${isUnavailable ? 'disabled' : ''} onclick="CartManager.updateQty(${idx},-1); CartRenderer.showModal();">-</button>
+                 <button class="qty-btn" style="width:24px; height:24px; font-size:0.8rem;" ${!isOrderable ? 'disabled' : ''} onclick="CartManager.updateQty(${idx},-1); CartRenderer.showModal();">-</button>
                  <span style="font-weight:800;">${item.orderQuantity}</span>
-                 <button class="qty-btn" style="width:24px; height:24px; font-size:0.8rem;" ${isUnavailable ? 'disabled' : ''} onclick="CartManager.updateQty(${idx},1); CartRenderer.showModal();">+</button>
+                 <button class="qty-btn" style="width:24px; height:24px; font-size:0.8rem;" ${!isOrderable ? 'disabled' : ''} onclick="CartManager.updateQty(${idx},1); CartRenderer.showModal();">+</button>
               </div>
            </div>
            <button onclick="CartManager.removeItem(${idx}); CartRenderer.showModal();" style="background:none;border:none;color:#ff3b30;cursor:pointer;font-size:1.2rem; padding:10px;">×</button>

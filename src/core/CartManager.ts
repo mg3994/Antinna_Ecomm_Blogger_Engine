@@ -51,13 +51,25 @@ export class CartManager {
 
   private calculateTotal(): void {
     this.order.totalPrice = this.order.orderedItem.reduce((sum, item) => {
-      if ((item as any).isUnavailable) return sum;
+      if (!this.isItemOrderable(item)) return sum;
       const { price } = SchemaExtractor.extractPrice(item.orderedItem.offers);
       return sum + (parseFloat(price) * item.orderQuantity);
     }, 0);
   }
 
+  public isItemOrderable(item: any): boolean {
+      if (item.isUnavailable) return false;
+      const av = SchemaExtractor.extractAvailability(item.orderedItem.offers);
+      return av !== "https://schema.org/OutOfStock" && av !== "https://schema.org/SoldOut";
+  }
+
   addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
+    const availability = SchemaExtractor.extractAvailability(item.offers);
+    if (availability === "https://schema.org/OutOfStock") {
+        // Prevent adding if out of stock
+        return;
+    }
+
     if (!item.url) {
         item.url = window.location.href.split('?')[0].split('#')[0];
     }
@@ -142,12 +154,11 @@ export class CartManager {
     if (!freshBaseData) {
       item.isUnavailable = true;
     } else {
+      let freshMatch = null;
       const cartItem = item.orderedItem;
       const dataSources = Array.isArray(freshBaseData) ? freshBaseData : [freshBaseData];
-      let freshMatch = null;
 
       for (const source of dataSources) {
-          // 1. SEARCH ALL CATALOGS (Deep traversal)
           const allCatalogs = SchemaExtractor.findAllCatalogs(source);
           for (const catalog of allCatalogs) {
               const matchedPackage = SchemaExtractor.findMatchingServicePackage({ hasOfferCatalog: catalog }, cartItem.name);
@@ -165,7 +176,6 @@ export class CartManager {
           }
           if (freshMatch) break;
 
-          // 2. Variant Match
           if (cartItem["@type"] === "Product" && source.hasVariant) {
               const variantMatch = SchemaExtractor.findMatchingVariant(source, cartItem._selectedVariants || {});
               if (variantMatch) {
@@ -174,7 +184,6 @@ export class CartManager {
               }
           }
 
-          // 3. Exact Type & Name/ID Match
           const sourceId = source.sku || source.identifier || source.name;
           const cartId = cartItem.sku || cartItem.identifier || cartItem.name;
           if (source["@type"] === cartItem["@type"] && sourceId === cartId) {
