@@ -74,7 +74,7 @@ export class CartManager {
       const specs: any = {};
       const fields = [
         'material', 'color', 'size', 'gtin13', 'sku',
-        'weight', 'height', 'width', 'depth'
+        'weight', 'height', 'width', 'depth', 'description'
       ];
 
       fields.forEach(field => {
@@ -142,38 +142,46 @@ export class CartManager {
     if (!freshBaseData) {
       item.isUnavailable = true;
     } else {
-      const cartItemType = item.orderedItem["@type"];
       let freshMatch = null;
+      const cartItem = item.orderedItem;
 
-      if (cartItemType === "Product" && freshBaseData.hasVariant) {
-          freshMatch = SchemaExtractor.findMatchingVariant(freshBaseData, item.orderedItem._selectedVariants || {});
-      }
+      // 1. Try to find in catalogs first (most specific for Services/Addons)
+      const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
+                          (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
+                          (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
 
-      if (cartItemType === "Service") {
-          const catalogSource = freshBaseData.hasOfferCatalog ? freshBaseData :
-                              (freshBaseData.offers?.seller?.hasOfferCatalog ? freshBaseData.offers.seller :
-                              (freshBaseData.provider?.hasOfferCatalog ? freshBaseData.provider : null));
-
-          if (catalogSource) {
-              freshMatch = SchemaExtractor.findMatchingServicePackage(catalogSource, item.orderedItem.name);
-              if (freshMatch) {
-                  const { price, currency } = SchemaExtractor.extractPrice(freshMatch);
-                  freshMatch = {
-                      ...item.orderedItem,
-                      "@type": "Service",
-                      offers: { "@type": "Offer", price, priceCurrency: currency }
-                  };
-              }
+      if (catalogSource) {
+          const matchedPackage = SchemaExtractor.findMatchingServicePackage(catalogSource, cartItem.name);
+          if (matchedPackage) {
+              const { price, currency } = SchemaExtractor.extractPrice(matchedPackage);
+              freshMatch = {
+                  ...cartItem,
+                  ...(matchedPackage.itemOffered || matchedPackage),
+                  "@type": (matchedPackage.itemOffered?.["@type"] || matchedPackage["@type"] || cartItem["@type"]),
+                  offers: {
+                      "@type": "Offer",
+                      price,
+                      priceCurrency: currency,
+                      availability: matchedPackage.availability || matchedPackage.offers?.availability
+                  }
+              };
           }
       }
 
-      if (!freshMatch && (freshBaseData["@type"] === cartItemType || freshBaseData["@type"]?.includes(cartItemType))) {
+      // 2. Try to find in variants if it's a Product
+      if (!freshMatch && cartItem["@type"] === "Product" && freshBaseData.hasVariant) {
+          freshMatch = SchemaExtractor.findMatchingVariant(freshBaseData, cartItem._selectedVariants || {});
+      }
+
+      // 3. Fallback to top-level match
+      if (!freshMatch && (freshBaseData["@type"] === cartItem["@type"] || freshBaseData["@type"]?.includes(cartItem["@type"]))) {
           freshMatch = freshBaseData;
       }
 
       if (freshMatch) {
-          item.isUnavailable = false; // RESET availability if match found
+          item.isUnavailable = false;
           const { price, currency } = SchemaExtractor.extractPrice(freshMatch.offers || freshMatch);
+
           item.orderedItem.offers = {
               "@type": "Offer",
               price: price,
@@ -182,7 +190,7 @@ export class CartManager {
           };
           item.orderedItem.image = freshMatch.image || item.orderedItem.image;
           item.orderedItem.name = freshMatch.name || item.orderedItem.name;
-          item.orderedItem["@type"] = cartItemType;
+          item.orderedItem.description = freshMatch.description || item.orderedItem.description;
       } else {
           item.isUnavailable = true;
       }
