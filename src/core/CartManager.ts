@@ -36,9 +36,12 @@ export class CartManager {
     }, 0);
   }
 
-  addItem(item: Product | Service, seller?: Organization): void {
+  addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
+    // Generate a unique key for this specific variant/service
+    const itemKey = this.generateItemKey(item, selectedVariants);
+
     const existing = this.order.orderedItem.find(
-      (oi) => oi.orderedItem.name === item.name
+      (oi) => (oi as any).itemKey === itemKey
     );
 
     if (existing) {
@@ -61,14 +64,25 @@ export class CartManager {
           name: item.name,
           image: item.image,
           offers: item.offers,
-          url: item.url, // Save URL for future refreshing
-          ...specs
+          url: item.url,
+          ...specs,
+          ...selectedVariants // Save explicit variant selection
         },
         orderQuantity: 1,
-        seller: seller
-      } as OrderItem);
+        seller: seller,
+        itemKey: itemKey // Custom property for identification
+      } as any);
     }
     this.saveToStorage();
+  }
+
+  private generateItemKey(item: Product | Service, variants?: Record<string, string>): string {
+    let key = item.sku || item.name || '';
+    if (variants) {
+      const vString = Object.entries(variants).sort().map(([k, v]) => `${k}:${v}`).join('|');
+      key += `|${vString}`;
+    }
+    return key;
   }
 
   removeItem(index: number): void {
@@ -91,17 +105,48 @@ export class CartManager {
     }
   }
 
-  updateItemDetails(index: number, freshData: Product | Service | null): void {
-    const item = this.order.orderedItem[index];
+  updateItemDetails(index: number, freshBaseData: any | null): void {
+    const item = this.order.orderedItem[index] as any;
     if (!item) return;
 
-    if (!freshData) {
-      (item as any).isUnavailable = true;
+    if (!freshBaseData) {
+      item.isUnavailable = true;
     } else {
-      (item as any).isUnavailable = false;
-      item.orderedItem.offers = freshData.offers;
-      item.orderedItem.image = freshData.image;
-      item.orderedItem.name = freshData.name;
+      item.isUnavailable = false;
+
+      // Find the specific variant in the fresh data
+      let freshItem = freshBaseData;
+
+      // If it's a ProductGroup, find matching variant
+      if (freshBaseData.hasVariant) {
+        freshItem = freshBaseData.hasVariant.find((v: any) => {
+          return Object.entries(item.orderedItem).every(([k, val]) => {
+            if (['@type', 'name', 'offers', 'image', 'url'].includes(k)) return true;
+            return v[k] === val;
+          });
+        }) || freshBaseData.hasVariant[0];
+      }
+      // If it's a Service with an OfferCatalog, find matching offer
+      else if (freshBaseData.hasOfferCatalog) {
+          const matchingOffer = freshBaseData.hasOfferCatalog.itemListElement.find((off: any) => {
+              const name = off.itemOffered?.name || off.name;
+              return name === item.orderedItem.name;
+          });
+          if (matchingOffer) {
+              freshItem = {
+                  ...item.orderedItem,
+                  offers: {
+                      "@type": "Offer",
+                      price: matchingOffer.price,
+                      priceCurrency: matchingOffer.priceCurrency
+                  }
+              };
+          }
+      }
+
+      item.orderedItem.offers = freshItem.offers || item.orderedItem.offers;
+      item.orderedItem.image = freshItem.image || item.orderedItem.image;
+      // Don't update name for variants as we want to keep the specific variant name if set
     }
     this.saveToStorage();
   }

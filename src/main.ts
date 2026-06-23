@@ -70,7 +70,6 @@ export class App {
     const addBtn = UIManager.el("add-to-cart-btn");
     const searchForm = UIManager.el<HTMLFormElement>("search-form");
     const confirmBtn = UIManager.el("cart-confirm-btn");
-    const cartFab = UIManager.el("cart-fab");
 
     if (qtyPlus) qtyPlus.onclick = () => {
       this.state.quantity++;
@@ -185,7 +184,7 @@ export class App {
     const { entries } = await this.BloggerDataService.fetchFeedData(100, 1);
 
     order.orderedItem.forEach((item, idx) => {
-      const url = item.orderedItem.url;
+      const url = (item.orderedItem as any).url;
       if (!url) return;
 
       const entry = entries.find(e => e.link.some((l: any) => l.rel === "alternate" && l.href.includes(url)));
@@ -238,11 +237,10 @@ export class App {
       };
     }
 
-    // Include the current URL in the variant for cart refreshing
     const itemToStore = { ...variant, url: window.location.href.split('?')[0].split('#')[0] };
 
     for (let i = 0; i < this.state.quantity; i++) {
-      this.CartManager.addItem(itemToStore, itemToStore.offers?.seller || p.seller || p.provider);
+      this.CartManager.addItem(itemToStore, itemToStore.offers?.seller || p.seller || p.provider, this.state.selectedVariants);
     }
     this.CartRenderer.updateUI();
     UIManager.showToast("Added to Bag", "success");
