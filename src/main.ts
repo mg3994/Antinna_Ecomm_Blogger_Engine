@@ -115,7 +115,9 @@ export class App {
             this.state.lastClickedAttribute = attr;
             this.ProductRenderer.render(this.state.product!, this.state, () => {});
           });
-          this.ProductRenderer.renderSeller(data.offers?.seller || data.seller || data.provider);
+          if (data.offers?.seller || data.seller || data.provider) {
+              this.ProductRenderer.renderSeller(data.offers?.seller || data.seller || data.provider);
+          }
         }
       }
       UIManager.toggleClass("initializing-state", "hidden", true);
@@ -131,7 +133,10 @@ export class App {
     const { entries } = await this.BloggerDataService.fetchFeedData(50, 1);
     cards.forEach(card => {
       const url = card.href.split("?")[0].split("#")[0];
-      const entry = entries.find(e => e.link.some((l: any) => l.rel === "alternate" && l.href.includes(url)));
+      const entry = entries.find(e => {
+          const alternateLink = e.link.find((l: any) => l.rel === "alternate")?.href || "";
+          return alternateLink.toLowerCase().includes(url.toLowerCase());
+      });
       const data = entry
         ? this.BloggerDataService.extractSchemaFromEntry(entry)
         : SchemaExtractor.extractJsonLd<any>(card.querySelector(".grid-data")?.textContent || "");
@@ -164,9 +169,9 @@ export class App {
              <div class="card-dots"></div>
           </div>
           <div class="card-body">
-            <div class="card-badge">${(data["@type"] === 'ProductGroup' || data["@type"] === 'Product') ? 'Product' : 'Service'}</div>
+            <div class="card-badge">Loading...</div>
             <h3 class="card-title">${data.name || "Untitled"}</h3>
-            <div class="card-price">${(data.offers?.priceCurrency || "INR") + " " + (data.offers?.price || "")}</div>
+            <div class="card-price">--</div>
           </div>
         `;
         grid.appendChild(card);
@@ -211,12 +216,18 @@ export class App {
     const scroll = card.querySelector(".card-img-scroll");
     const dots = card.querySelector(".card-dots");
 
-    if (badge) badge.textContent = (data["@type"] === 'ProductGroup' || data["@type"] === 'Product') ? 'Product' : 'Service';
+    const isBusiness = data["@type"] === "LocalBusiness" || data["@type"] === "Store" || data["@type"] === "Organization";
 
-    const variant = data.hasVariant ? data.hasVariant[0] : data;
-    if (variant.offers && price) {
-      const { price: p, currency } = SchemaExtractor.extractPrice(variant.offers);
-      price.textContent = `${currency} ${p}`;
+    if (badge) badge.textContent = isBusiness ? 'Business' : ((data["@type"] === 'ProductGroup' || data["@type"] === 'Product') ? 'Product' : 'Service');
+
+    if (price) {
+        if (isBusiness) {
+            price.textContent = data.telephone || "Contact Us";
+        } else {
+            const variant = data.hasVariant ? data.hasVariant[0] : data;
+            const { price: p, currency } = SchemaExtractor.extractPrice(variant.offers || variant);
+            price.textContent = `${currency} ${p}`;
+        }
     }
 
     const imgs = Array.isArray(data.image) ? data.image : [data.image];

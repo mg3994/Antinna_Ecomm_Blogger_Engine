@@ -4,42 +4,68 @@ import { UIManager } from './UIManager';
 import { SchemaExtractor } from '../core/SchemaExtractor';
 
 export class ProductRenderer {
-  render(p: Product | ProductGroup | Service, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
-    const variant = SchemaExtractor.findMatchingVariant(p, state.selectedVariants, state.lastClickedAttribute);
+  render(p: Product | ProductGroup | Service | any, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
+    const isBusiness = p["@type"] === "LocalBusiness" || p["@type"] === "Store" || p["@type"] === "Organization";
 
-    if (variant && (p as any).variesBy) {
-        (p as any).variesBy.forEach((u: string) => {
-          const a = u.split(/[\/#]/).pop() || '';
-          if (variant[a]) state.selectedVariants[a] = String(variant[a]);
-        });
+    if (isBusiness) {
+        this.renderBusinessView(p);
+    } else {
+        const variant = SchemaExtractor.findMatchingVariant(p, state.selectedVariants, state.lastClickedAttribute);
+
+        if (variant && (p as any).variesBy) {
+            (p as any).variesBy.forEach((u: string) => {
+              const a = u.split(/[\/#]/).pop() || '';
+              if (variant[a]) state.selectedVariants[a] = String(variant[a]);
+            });
+        }
+
+        UIManager.setContent("p-name", variant.name || p.name);
+        UIManager.setContent("p-desc", variant.description || p.description);
+        UIManager.setContent("p-sku", variant.sku ? "SKU: " + variant.sku : "");
+
+        const brand = typeof (variant.brand || p.brand) === "string"
+          ? (variant.brand || p.brand)
+          : ((variant.brand as Organization)?.name || (p.brand as Organization)?.name);
+        UIManager.setContent("p-brand", brand || "");
+
+        const offer = (variant.offers || p.offers) as Offer;
+        const priceEl = UIManager.el("p-price");
+        if (priceEl && offer) {
+          const { price, currency } = SchemaExtractor.extractPrice(offer);
+          priceEl.textContent = `${currency} ${price}`;
+          priceEl.classList.toggle("blurry", offer.availability === "https://schema.org/OutOfStock");
+        }
+
+        this.renderStockBadge(offer);
+        this.renderAreaServed(p as Service);
+
+        const imgs = Array.isArray(variant.image || p.image) ? (variant.image || p.image) : [variant.image || p.image];
+        this.renderCarousel(imgs.filter(Boolean));
+
+        this.renderVariants(p, state, onVariantChange);
+        this.renderSpecs(variant, p);
+        this.renderOtherServices(offer?.seller || p.seller || (p as Service).provider, p);
     }
+  }
 
-    UIManager.setContent("p-name", variant.name || p.name);
-    UIManager.setContent("p-desc", variant.description || p.description);
-    UIManager.setContent("p-sku", variant.sku ? "SKU: " + variant.sku : "");
+  private renderBusinessView(b: any): void {
+      UIManager.setContent("p-name", b.name);
+      UIManager.setContent("p-desc", b.description || "");
+      UIManager.setContent("p-brand", b["@type"]);
 
-    const brand = typeof (variant.brand || p.brand) === "string"
-      ? (variant.brand || p.brand)
-      : ((variant.brand as Organization)?.name || (p.brand as Organization)?.name);
-    UIManager.setContent("p-brand", brand || "");
+      const priceEl = UIManager.el("p-price");
+      if (priceEl) priceEl.textContent = "Service Provider";
 
-    const offer = (variant.offers || p.offers) as Offer;
-    const priceEl = UIManager.el("p-price");
-    if (priceEl && offer) {
-      const { price, currency } = SchemaExtractor.extractPrice(offer);
-      priceEl.textContent = `${currency} ${price}`;
-      priceEl.classList.toggle("blurry", offer.availability === "https://schema.org/OutOfStock");
-    }
+      // Hide product specific controls
+      UIManager.toggleClass("p-sku", "hidden", true);
+      UIManager.toggleClass("stock-badge-container", "hidden", true);
+      UIManager.toggleClass("p-variants", "hidden", true);
+      UIManager.toggleClass("qty-controls", "hidden", true);
+      UIManager.toggleClass("add-to-cart-btn", "hidden", true);
 
-    this.renderStockBadge(offer);
-    this.renderAreaServed(p as Service);
-
-    const imgs = Array.isArray(variant.image || p.image) ? (variant.image || p.image) : [variant.image || p.image];
-    this.renderCarousel(imgs.filter(Boolean));
-
-    this.renderVariants(p, state, onVariantChange);
-    this.renderSpecs(variant, p);
-    this.renderOtherServices(offer?.seller || p.seller || (p as Service).provider, p);
+      this.renderCarousel(Array.isArray(b.image) ? b.image : [b.image]);
+      this.renderSeller(b);
+      this.renderOtherServices(b, b);
   }
 
   private renderStockBadge(offer: Offer): void {
@@ -104,6 +130,7 @@ export class ProductRenderer {
   private renderVariants(p: any, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
     const vc = UIManager.el("p-variants");
     if (vc && !vc.children.length) {
+      UIManager.toggleClass("p-variants", "hidden", false);
       if (p.variesBy) {
         p.variesBy.forEach((u: string) => {
           const a = u.split(/[\/#]/).pop() || '';
@@ -236,31 +263,26 @@ export class ProductRenderer {
     const otherList = UIManager.el("other-services-list");
     if (!otherSec || !otherList) return;
 
+    const allCatalogs = SchemaExtractor.findAllCatalogs(s);
     let svcs: any[] = [];
-    if (s?.hasOfferCatalog && s.hasOfferCatalog.itemListElement) {
-      svcs = s.hasOfferCatalog.itemListElement;
-    } else if (s?.knowsAbout) {
-      svcs = Array.isArray(s.knowsAbout) ? s.knowsAbout : [s.knowsAbout];
-    }
+    allCatalogs.forEach(cat => {
+        if (cat.itemListElement) svcs.push(...cat.itemListElement);
+    });
 
     if (svcs.length > 0) {
       otherSec.style.display = "block";
       otherList.innerHTML = svcs.map((ser: any) => {
-        const n = ser.name || ser.itemOffered?.name || ser;
-        const pr = ser.price || ser.itemOffered?.offers?.price || '';
-        const cr = ser.priceCurrency || 'INR';
-        const ci = ser.itemOffered ? { ...ser.itemOffered } : (typeof ser === 'object' ? { ...ser } : { name: ser });
+        const item = ser.itemOffered || ser;
+        const n = item.name || ser.name;
+        const { price, currency } = SchemaExtractor.extractPrice(ser);
 
-        // EXPLICITLY set @type to Service for catalog items
-        if (!ci["@type"]) ci["@type"] = "Service";
-        if (!ci.offers) ci.offers = { "@type": "Offer", price: pr, priceCurrency: cr };
-
+        // Ensure the service carries the parent's URL
         const url = p.url || window.location.href.split('?')[0].split('#')[0];
-        const itemWithUrl = { ...ci, url };
+        const itemWithUrl = { ...item, url, offers: { "@type": "Offer", price, priceCurrency: currency, availability: SchemaExtractor.extractAvailability(ser) } };
 
         let btnH = `<button class="v-btn" style="width:100%;padding:10px;font-size:0.85rem;" onclick="CartManager.addItem(${JSON.stringify(itemWithUrl).replace(/"/g, '&quot;')}, ${JSON.stringify(s).replace(/"/g, '&quot;')}); CartRenderer.updateUI();">Add Service</button>`;
 
-        return `<div class="h-card"><div style="font-weight:700;margin-bottom:10px;height:3em;overflow:hidden;">${n}</div><div class="price" style="font-size:1.2rem;margin-bottom:15px;">${pr ? cr + ' ' + pr : 'Free/Included'}</div>${btnH}</div>`;
+        return `<div class="h-card"><div style="font-weight:700;margin-bottom:10px;height:3em;overflow:hidden;">${n}</div><div class="price" style="font-size:1.2rem;margin-bottom:15px;">${price !== "0" ? currency + ' ' + price : 'Free/Included'}</div>${btnH}</div>`;
       }).join('');
     } else {
       otherSec.style.display = "none";
