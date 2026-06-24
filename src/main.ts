@@ -22,6 +22,7 @@ export class App {
   private gridPageSize = 20;
   private gridStartIndex = 1;
   private currentLabels: string[] = [];
+  private currentSearchQuery: string = '';
 
   public CartManager = new CartManager();
   public LocationManager = new LocationManager();
@@ -40,9 +41,18 @@ export class App {
 
   private detectContext(): void {
       const path = window.location.pathname;
+      const searchParams = new URLSearchParams(window.location.search);
+
+      // Extract Labels
       if (path.includes('/search/label/')) {
           const label = path.split('/search/label/')[1].split('?')[0];
           if (label) this.currentLabels = [decodeURIComponent(label)];
+      }
+
+      // Extract Search Query
+      const q = searchParams.get('q');
+      if (q) {
+          this.currentSearchQuery = q;
       }
   }
 
@@ -140,7 +150,7 @@ export class App {
     const cards = document.querySelectorAll<HTMLAnchorElement>(".card");
     if (cards.length === 0) return;
 
-    const { entries } = await this.BloggerDataService.fetchFeedData(50, 1, this.currentLabels);
+    const { entries } = await this.BloggerDataService.fetchFeedData(50, 1, this.currentLabels, this.currentSearchQuery);
     cards.forEach(card => {
       const url = card.href.split("?")[0].split("#")[0];
       const entry = entries.find(e => {
@@ -159,7 +169,7 @@ export class App {
 
   public async loadMorePosts(): Promise<void> {
     this.gridStartIndex += this.gridPageSize;
-    const { entries, totalResults } = await this.BloggerDataService.fetchFeedData(this.gridPageSize, this.gridStartIndex, this.currentLabels);
+    const { entries, totalResults } = await this.BloggerDataService.fetchFeedData(this.gridPageSize, this.gridStartIndex, this.currentLabels, this.currentSearchQuery);
 
     const grid = UIManager.el("app-grid");
     if (!grid) return;

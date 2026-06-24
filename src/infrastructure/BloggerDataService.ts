@@ -1,7 +1,7 @@
 import { SchemaExtractor } from '../core/SchemaExtractor';
 
 export class BloggerDataService {
-  async fetchFeedData(maxResults: number = 50, startIndex: number = 1, labels: string | string[] = ''): Promise<{ entries: any[], totalResults: number }> {
+  async fetchFeedData(maxResults: number = 50, startIndex: number = 1, labels: string | string[] = '', searchQuery: string = ''): Promise<{ entries: any[], totalResults: number }> {
     let labelPath = '';
 
     if (labels) {
@@ -13,7 +13,11 @@ export class BloggerDataService {
         }
     }
 
-    const feedUrl = `/feeds/posts/default${labelPath}?alt=json&max-results=${maxResults}&start-index=${startIndex}`;
+    let feedUrl = `/feeds/posts/default${labelPath}?alt=json&max-results=${maxResults}&start-index=${startIndex}`;
+
+    if (searchQuery) {
+        feedUrl += `&q=${encodeURIComponent(searchQuery)}`;
+    }
 
     try {
       const res = await fetch(feedUrl);
