@@ -43,18 +43,15 @@ export class App {
       const path = window.location.pathname;
       const searchParams = new URLSearchParams(window.location.search);
 
-      // 1. Detect Standard Label View
       if (path.includes('/search/label/')) {
           const label = path.split('/search/label/')[1].split('?')[0];
           if (label) this.currentLabels.push(decodeURIComponent(label));
       }
 
-      // 2. Detect Search Query and Query-based Labels
       const q = searchParams.get('q');
       if (q) {
           this.currentSearchQuery = q;
 
-          // Regex to find "label:LabelName" patterns
           const labelRegex = /label:([^|\s]+)/g;
           let match;
           while ((match = labelRegex.exec(q)) !== null) {
@@ -98,17 +95,25 @@ export class App {
   }
 
   private highlightActiveLabels(): void {
-      if (this.currentLabels.length === 0) return;
-
       const catLinks = document.querySelectorAll('.cat-link');
-      catLinks.forEach(link => {
-          const href = link.getAttribute('href') || '';
-          const isMatch = this.currentLabels.some(label => {
-              const encoded = encodeURIComponent(label);
-              return href.includes(encoded) || link.textContent?.trim() === label;
+
+      // If we have specific labels, "ALL" should NOT be highlighted
+      if (this.currentLabels.length > 0) {
+          catLinks.forEach(link => {
+              const text = link.textContent?.trim().toUpperCase();
+              if (text === 'ALL') {
+                  link.classList.remove('active');
+                  return;
+              }
+
+              const href = link.getAttribute('href') || '';
+              const isMatch = this.currentLabels.some(label => {
+                  const encoded = encodeURIComponent(label);
+                  return href.includes(encoded) || link.textContent?.trim() === label;
+              });
+              if (isMatch) link.classList.add('active');
           });
-          if (isMatch) link.classList.add('active');
-      });
+      }
   }
 
   private setupEventListeners(): void {
