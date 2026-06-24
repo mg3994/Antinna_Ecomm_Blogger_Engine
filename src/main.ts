@@ -43,13 +43,11 @@ export class App {
       const path = window.location.pathname;
       const searchParams = new URLSearchParams(window.location.search);
 
-      // Extract Labels
       if (path.includes('/search/label/')) {
           const label = path.split('/search/label/')[1].split('?')[0];
           if (label) this.currentLabels = [decodeURIComponent(label)];
       }
 
-      // Extract Search Query
       const q = searchParams.get('q');
       if (q) {
           this.currentSearchQuery = q;
@@ -147,61 +145,73 @@ export class App {
   }
 
   private async loadGridData(): Promise<void> {
-    const cards = document.querySelectorAll<HTMLAnchorElement>(".card");
-    if (cards.length === 0) return;
-
-    const { entries } = await this.BloggerDataService.fetchFeedData(50, 1, this.currentLabels, this.currentSearchQuery);
-    cards.forEach(card => {
-      const url = card.href.split("?")[0].split("#")[0];
-      const entry = entries.find(e => {
-          const alternateLink = e.link.find((l: any) => l.rel === "alternate")?.href || "";
-          return alternateLink.toLowerCase().includes(url.toLowerCase());
-      });
-      const data = entry
-        ? this.BloggerDataService.extractSchemaFromEntry(entry)
-        : SchemaExtractor.extractJsonLd<any>(card.querySelector(".grid-data")?.textContent || "");
-
-      if (data) {
-        this.renderGridCard(card, data);
-      }
-    });
-  }
-
-  public async loadMorePosts(): Promise<void> {
-    this.gridStartIndex += this.gridPageSize;
-    const { entries, totalResults } = await this.BloggerDataService.fetchFeedData(this.gridPageSize, this.gridStartIndex, this.currentLabels, this.currentSearchQuery);
-
     const grid = UIManager.el("app-grid");
     if (!grid) return;
 
-    entries.forEach(entry => {
-      const data = this.BloggerDataService.extractSchemaFromEntry(entry);
-      if (data) {
-        const url = entry.link.find((l: any) => l.rel === "alternate")?.href || "#";
-        const card = document.createElement("a");
-        card.className = "card";
-        card.href = url;
-        card.innerHTML = `
-          <div class="card-img-wrapper">
-             <div class="card-img-scroll" onscroll="AntinnaEngine.syncDots(this)">
-                <img class="card-img" src="${(Array.isArray(data.image) ? data.image[0] : (data.image?.url || data.image)) || 'https://via.placeholder.com/400x300?text=Antinna'}" loading="lazy"/>
-             </div>
-             <div class="card-dots"></div>
-          </div>
-          <div class="card-body">
-            <div class="card-badge">Loading...</div>
-            <h3 class="card-title">${data.name || "Untitled"}</h3>
-            <div class="card-price">--</div>
-          </div>
-        `;
-        grid.appendChild(card);
-        this.renderGridCard(card, data);
-      }
-    });
+    const { entries } = await this.BloggerDataService.fetchFeedData(50, 1, this.currentLabels, this.currentSearchQuery);
+
+    // If the grid is empty (e.g., search page), render from feed
+    if (grid.children.length === 0) {
+        this.renderEntriesToGrid(entries, grid);
+    } else {
+        // Sync existing cards
+        const cards = grid.querySelectorAll<HTMLAnchorElement>(".card");
+        cards.forEach(card => {
+          const url = card.href.split("?")[0].split("#")[0];
+          const entry = entries.find(e => {
+              const alternateLink = e.link.find((l: any) => l.rel === "alternate")?.href || "";
+              return alternateLink.toLowerCase().includes(url.toLowerCase());
+          });
+          const data = entry
+            ? this.BloggerDataService.extractSchemaFromEntry(entry)
+            : SchemaExtractor.extractJsonLd<any>(card.querySelector(".grid-data")?.textContent || "");
+
+          if (data) {
+            this.renderGridCard(card, data);
+          }
+        });
+    }
+  }
+
+  public async loadMorePosts(): Promise<void> {
+    const grid = UIManager.el("app-grid");
+    if (!grid) return;
+
+    this.gridStartIndex += this.gridPageSize;
+    const { entries, totalResults } = await this.BloggerDataService.fetchFeedData(this.gridPageSize, this.gridStartIndex, this.currentLabels, this.currentSearchQuery);
+
+    this.renderEntriesToGrid(entries, grid);
 
     if (this.gridStartIndex + this.gridPageSize > totalResults) {
       UIManager.el("load-more-btn")?.classList.add("hidden");
     }
+  }
+
+  private renderEntriesToGrid(entries: any[], grid: HTMLElement): void {
+      entries.forEach(entry => {
+        const data = this.BloggerDataService.extractSchemaFromEntry(entry);
+        if (data) {
+          const url = entry.link.find((l: any) => l.rel === "alternate")?.href || "#";
+          const card = document.createElement("a");
+          card.className = "card";
+          card.href = url;
+          card.innerHTML = `
+            <div class="card-img-wrapper">
+               <div class="card-img-scroll" onscroll="AntinnaEngine.syncDots(this)">
+                  <img class="card-img" src="${(Array.isArray(data.image) ? data.image[0] : (data.image?.url || data.image)) || 'https://via.placeholder.com/400x300?text=Antinna'}" loading="lazy"/>
+               </div>
+               <div class="card-dots"></div>
+            </div>
+            <div class="card-body">
+              <div class="card-badge">Loading...</div>
+              <h3 class="card-title">${data.name || "Untitled"}</h3>
+              <div class="card-price">--</div>
+            </div>
+          `;
+          grid.appendChild(card);
+          this.renderGridCard(card, data);
+        }
+      });
   }
 
   public async refreshCartData(): Promise<void> {
