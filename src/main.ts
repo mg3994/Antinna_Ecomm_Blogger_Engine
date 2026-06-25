@@ -1,4 +1,4 @@
-import { AppState } from './types/app';
+import { AppState, LocationData } from './types/app';
 import { SchemaExtractor } from './core/SchemaExtractor';
 import { CartManager } from './core/CartManager';
 import { LocationManager } from './core/LocationManager';
@@ -54,17 +54,20 @@ export class App {
       if (q) {
           this.currentSearchQuery = q;
 
-          const loc = this.LocationManager.getData();
-          const locationString = loc.pin || loc.city || "";
+          // Patterns for Location cleaning
+          const patterns = [
+              /"postalCode":\s*"([^"]+)"/,
+              /postalCode:\s*([^|\s]+)/,
+              /"addressLocality":\s*"([^"]+)"/,
+              /addressLocality:\s*([^|\s]+)/
+          ];
 
           let cleanedQ = q;
-          // Remove location if found at the end
-          if (locationString && q.endsWith(locationString)) {
-              cleanedQ = q.substring(0, q.length - locationString.length).trim();
-          }
-          this.displaySearchQuery = cleanedQ;
+          patterns.forEach(p => {
+              cleanedQ = cleanedQ.replace(p, '').trim();
+          });
 
-          // keywords only = cleanedQ minus all label:A|label:B
+          this.displaySearchQuery = cleanedQ;
           this.searchKeywordsOnly = cleanedQ.replace(/label:[^|\s]+/g, '').trim();
 
           const labelRegex = /label:([^|\s]+)/g;
@@ -78,6 +81,17 @@ export class App {
               }
           }
       }
+  }
+
+  private formatLocationQuery(): string {
+      const loc = this.LocationManager.getData();
+      if (loc.pin) {
+          return `"postalCode": "${loc.pin}"`;
+      }
+      if (loc.city) {
+          return `"addressLocality": "${loc.city}"`;
+      }
+      return "";
   }
 
   private exposeGlobals(): void {
@@ -120,11 +134,9 @@ export class App {
 
   private updateCategoryLinks(): void {
       const keywords = this.searchKeywordsOnly.trim();
-      const loc = this.LocationManager.getData();
-      const extra = loc.pin || loc.city || "";
+      const locString = this.formatLocationQuery();
 
-      // If we have nothing to search for (no keywords, no loc), don't modify
-      if (!keywords && !extra) return;
+      if (!keywords && !locString) return;
 
       const catLinks = document.querySelectorAll<HTMLAnchorElement>('.cat-link');
       catLinks.forEach(link => {
@@ -132,13 +144,11 @@ export class App {
           let finalQuery = '';
 
           if (text.toUpperCase() === 'ALL') {
-              finalQuery = `${keywords} ${extra}`.trim();
+              finalQuery = `${keywords} ${locString}`.trim();
           } else {
-              // Construct: label:Category Keywords Location
-              finalQuery = `label:${text} ${keywords} ${extra}`.trim();
+              finalQuery = `label:${text} ${keywords} ${locString}`.trim();
           }
 
-          // Force pretty formatting
           const prettyQuery = encodeURIComponent(finalQuery)
             .replace(/%20/g, ' ')
             .replace(/%3A/g, ':');
@@ -199,11 +209,10 @@ export class App {
         if (!qInput) return;
 
         const baseQuery = qInput.value.trim();
-        const loc = this.LocationManager.getData();
-        const extra = loc.pin || loc.city || "";
+        const locString = this.formatLocationQuery();
 
-        const combinedQuery = (extra && !baseQuery.includes(extra))
-            ? `${baseQuery} ${extra}`.trim()
+        const combinedQuery = (locString && !baseQuery.includes(locString))
+            ? `${baseQuery} ${locString}`.trim()
             : baseQuery;
 
         const searchUrl = searchForm.getAttribute('action') || '/search';
