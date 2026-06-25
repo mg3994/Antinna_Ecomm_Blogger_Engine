@@ -24,6 +24,7 @@ export class App {
   private currentLabels: string[] = [];
   private currentSearchQuery: string = '';
   private displaySearchQuery: string = '';
+  private searchKeywordsOnly: string = '';
 
   public CartManager = new CartManager();
   public LocationManager = new LocationManager();
@@ -60,6 +61,9 @@ export class App {
               cleanedQ = q.substring(0, q.length - locationString.length).trim();
           }
           this.displaySearchQuery = cleanedQ;
+
+          // Extract keywords only (strip label: prefixes)
+          this.searchKeywordsOnly = cleanedQ.replace(/label:[^|\s]+/g, '').trim();
 
           const labelRegex = /label:([^|\s]+)/g;
           let match;
@@ -99,6 +103,7 @@ export class App {
       this.setupEventListeners();
       this.loadProductData();
       this.loadGridData();
+      this.updateCategoryLinks();
       this.highlightActiveLabels();
       this.initSearchInput();
     });
@@ -111,20 +116,38 @@ export class App {
       }
   }
 
+  private updateCategoryLinks(): void {
+      const keywords = this.searchKeywordsOnly.trim();
+      if (!keywords) return;
+
+      const catLinks = document.querySelectorAll<HTMLAnchorElement>('.cat-link');
+      catLinks.forEach(link => {
+          const text = link.textContent?.trim() || '';
+          if (text.toUpperCase() === 'ALL') {
+              link.href = `/search?q=${encodeURIComponent(keywords)}`;
+          } else {
+              // Construct multi-filter URL: label:Category Keywords
+              const finalQuery = `label:${text} ${keywords}`
+                .replace(/ /g, '%20') // Keep it readable but encoded
+                .replace(/:/g, ':'); // Force pretty colon
+
+              link.href = `/search?q=${finalQuery}`;
+          }
+      });
+  }
+
   private highlightActiveLabels(): void {
       const catLinks = document.querySelectorAll('.cat-link');
       if (this.currentLabels.length > 0) {
           catLinks.forEach(link => {
-              const text = link.textContent?.trim().toUpperCase();
-              if (text === 'ALL') {
+              const text = link.textContent?.trim();
+              if (text?.toUpperCase() === 'ALL') {
                   link.classList.remove('active');
                   return;
               }
 
-              const href = link.getAttribute('href') || '';
               const isMatch = this.currentLabels.some(label => {
-                  const encoded = encodeURIComponent(label);
-                  return href.includes(encoded) || link.textContent?.trim() === label;
+                  return text === label;
               });
               if (isMatch) link.classList.add('active');
           });
@@ -174,7 +197,6 @@ export class App {
 
         const searchUrl = searchForm.getAttribute('action') || '/search';
 
-        // MANUALLY construct URL to preserve characters like : and | in the address bar
         let finalQuery = encodeURIComponent(combinedQuery)
             .replace(/%3A/g, ':')
             .replace(/%7C/g, '|');
@@ -201,9 +223,9 @@ export class App {
           }
         }
       }
-      UIManager.toggleClass("initializing-state", "hidden", true);
-      UIManager.toggleClass("carousel-section", "hidden", false);
-      UIManager.toggleClass("details-section", "hidden", false);
+      UIManager.toggleClass("#initializing-state", "hidden", true);
+      UIManager.toggleClass("#carousel-section", "hidden", false);
+      UIManager.toggleClass("#details-section", "hidden", false);
     }, 100);
   }
 
