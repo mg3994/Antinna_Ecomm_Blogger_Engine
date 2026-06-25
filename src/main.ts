@@ -53,7 +53,6 @@ export class App {
       if (q) {
           this.currentSearchQuery = q;
 
-          // Clean the display query by removing the location data if it was appended
           const loc = this.LocationManager.getData();
           const locationString = loc.pin || loc.city || "";
           let cleanedQ = q;
@@ -161,7 +160,7 @@ export class App {
 
     if (searchForm) {
       searchForm.onsubmit = (e) => {
-        e.preventDefault(); // Intercept to control query
+        e.preventDefault();
         const qInput = UIManager.el<HTMLInputElement>("search-q");
         if (!qInput) return;
 
@@ -169,13 +168,18 @@ export class App {
         const loc = this.LocationManager.getData();
         const extra = loc.pin || loc.city || "";
 
-        // Internal query for navigation (includes location)
         const combinedQuery = (extra && !baseQuery.includes(extra))
             ? `${baseQuery} ${extra}`.trim()
             : baseQuery;
 
         const searchUrl = searchForm.getAttribute('action') || '/search';
-        window.location.href = `${searchUrl}?q=${encodeURIComponent(combinedQuery)}`;
+
+        // MANUALLY construct URL to preserve characters like : and | in the address bar
+        let finalQuery = encodeURIComponent(combinedQuery)
+            .replace(/%3A/g, ':')
+            .replace(/%7C/g, '|');
+
+        window.location.href = `${searchUrl}?q=${finalQuery}`;
       };
     }
   }
@@ -321,7 +325,7 @@ export class App {
     if (imgs[0] && scroll) {
       scroll.innerHTML = imgs.map((img: any) => `<img class="card-img" src="${img.url || img}" loading="lazy"/>`).join('');
       if (dots && imgs.length > 1) {
-        dots.innerHTML = imgs.map((_: any, i: number) => `<div class="dot ${i === 0 ? 'active' : ''}"></div`).join('');
+        dots.innerHTML = imgs.map((_: any, i: number) => `<div class="dot ${i === 0 ? 'active' : ''}"></div>`).join('');
       }
     }
   }
