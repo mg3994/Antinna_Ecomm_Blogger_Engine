@@ -56,13 +56,15 @@ export class App {
 
           const loc = this.LocationManager.getData();
           const locationString = loc.pin || loc.city || "";
+
           let cleanedQ = q;
+          // Remove location if found at the end
           if (locationString && q.endsWith(locationString)) {
               cleanedQ = q.substring(0, q.length - locationString.length).trim();
           }
           this.displaySearchQuery = cleanedQ;
 
-          // Extract keywords only (strip label: prefixes)
+          // keywords only = cleanedQ minus all label:A|label:B
           this.searchKeywordsOnly = cleanedQ.replace(/label:[^|\s]+/g, '').trim();
 
           const labelRegex = /label:([^|\s]+)/g;
@@ -118,21 +120,30 @@ export class App {
 
   private updateCategoryLinks(): void {
       const keywords = this.searchKeywordsOnly.trim();
-      if (!keywords) return;
+      const loc = this.LocationManager.getData();
+      const extra = loc.pin || loc.city || "";
+
+      // If we have nothing to search for (no keywords, no loc), don't modify
+      if (!keywords && !extra) return;
 
       const catLinks = document.querySelectorAll<HTMLAnchorElement>('.cat-link');
       catLinks.forEach(link => {
           const text = link.textContent?.trim() || '';
-          if (text.toUpperCase() === 'ALL') {
-              link.href = `/search?q=${encodeURIComponent(keywords)}`;
-          } else {
-              // Construct multi-filter URL: label:Category Keywords
-              const finalQuery = `label:${text} ${keywords}`
-                .replace(/ /g, '%20') // Keep it readable but encoded
-                .replace(/:/g, ':'); // Force pretty colon
+          let finalQuery = '';
 
-              link.href = `/search?q=${finalQuery}`;
+          if (text.toUpperCase() === 'ALL') {
+              finalQuery = `${keywords} ${extra}`.trim();
+          } else {
+              // Construct: label:Category Keywords Location
+              finalQuery = `label:${text} ${keywords} ${extra}`.trim();
           }
+
+          // Force pretty formatting
+          const prettyQuery = encodeURIComponent(finalQuery)
+            .replace(/%20/g, ' ')
+            .replace(/%3A/g, ':');
+
+          link.href = `/search?q=${prettyQuery}`;
       });
   }
 
