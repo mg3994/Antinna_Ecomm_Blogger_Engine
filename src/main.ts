@@ -23,6 +23,7 @@ export class App {
   private gridStartIndex = 1;
   private currentLabels: string[] = [];
   private currentSearchQuery: string = '';
+  private displaySearchQuery: string = '';
 
   public CartManager = new CartManager();
   public LocationManager = new LocationManager();
@@ -51,6 +52,15 @@ export class App {
       const q = searchParams.get('q');
       if (q) {
           this.currentSearchQuery = q;
+
+          // Clean the display query by removing the location data if it was appended
+          const loc = this.LocationManager.getData();
+          const locationString = loc.pin || loc.city || "";
+          let cleanedQ = q;
+          if (locationString && q.endsWith(locationString)) {
+              cleanedQ = q.substring(0, q.length - locationString.length).trim();
+          }
+          this.displaySearchQuery = cleanedQ;
 
           const labelRegex = /label:([^|\s]+)/g;
           let match;
@@ -91,13 +101,19 @@ export class App {
       this.loadProductData();
       this.loadGridData();
       this.highlightActiveLabels();
+      this.initSearchInput();
     });
+  }
+
+  private initSearchInput(): void {
+      const qInput = UIManager.el<HTMLInputElement>("search-q");
+      if (qInput && this.displaySearchQuery) {
+          qInput.value = this.displaySearchQuery;
+      }
   }
 
   private highlightActiveLabels(): void {
       const catLinks = document.querySelectorAll('.cat-link');
-
-      // If we have specific labels, "ALL" should NOT be highlighted
       if (this.currentLabels.length > 0) {
           catLinks.forEach(link => {
               const text = link.textContent?.trim().toUpperCase();
@@ -145,12 +161,21 @@ export class App {
 
     if (searchForm) {
       searchForm.onsubmit = (e) => {
-        const q = UIManager.el<HTMLInputElement>("search-q");
+        e.preventDefault(); // Intercept to control query
+        const qInput = UIManager.el<HTMLInputElement>("search-q");
+        if (!qInput) return;
+
+        const baseQuery = qInput.value.trim();
         const loc = this.LocationManager.getData();
         const extra = loc.pin || loc.city || "";
-        if (q && extra && !q.value.includes(extra)) {
-          q.value = q.value + " " + extra;
-        }
+
+        // Internal query for navigation (includes location)
+        const combinedQuery = (extra && !baseQuery.includes(extra))
+            ? `${baseQuery} ${extra}`.trim()
+            : baseQuery;
+
+        const searchUrl = searchForm.getAttribute('action') || '/search';
+        window.location.href = `${searchUrl}?q=${encodeURIComponent(combinedQuery)}`;
       };
     }
   }
@@ -296,7 +321,7 @@ export class App {
     if (imgs[0] && scroll) {
       scroll.innerHTML = imgs.map((img: any) => `<img class="card-img" src="${img.url || img}" loading="lazy"/>`).join('');
       if (dots && imgs.length > 1) {
-        dots.innerHTML = imgs.map((_: any, i: number) => `<div class="dot ${i === 0 ? 'active' : ''}"></div>`).join('');
+        dots.innerHTML = imgs.map((_: any, i: number) => `<div class="dot ${i === 0 ? 'active' : ''}"></div`).join('');
       }
     }
   }
