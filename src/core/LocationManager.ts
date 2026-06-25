@@ -47,4 +47,24 @@ export class LocationManager {
     }
     return {};
   }
+
+  async lookupPin(pin: string): Promise<Partial<LocationData>> {
+      try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pin}&country=India&format=json&addressdetails=1`, {
+              headers: { 'User-Agent': 'Antinna-Blogger-Engine/1.0' }
+          });
+          const d = await res.json();
+          if (d && d.length > 0) {
+              const addr = d[0].address;
+              return {
+                  lat: parseFloat(d[0].lat),
+                  lon: parseFloat(d[0].lon),
+                  city: addr.city || addr.town || addr.village || addr.state_district || addr.county
+              };
+          }
+      } catch (e) {
+          console.error("PIN lookup failed", e);
+      }
+      return { city: null, lat: null, lon: null }; // Reset if not found
+  }
 }

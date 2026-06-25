@@ -51,13 +51,23 @@ export class LocationRenderer {
     );
   }
 
-  handleSetPin(): void {
+  async handleSetPin(): Promise<void> {
     const input = UIManager.el<HTMLInputElement>('modal-pin-input');
     if (input && input.value.length === 6) {
-      this.locationManager.setData({ pin: input.value });
+      const pin = input.value;
+      UIManager.showToast("Verifying PIN...", "success");
+
+      const geoData = await this.locationManager.lookupPin(pin);
+      this.locationManager.setData({ pin, ...geoData });
+
       this.updateUI();
       this.hideModal();
-      UIManager.showToast("Location updated!", "success");
+
+      if (geoData.city) {
+          UIManager.showToast(`Location set to ${geoData.city}`, "success");
+      } else {
+          UIManager.showToast("Location updated!", "success");
+      }
     } else {
       UIManager.showToast("Enter a valid 6-digit PIN", "error");
     }
