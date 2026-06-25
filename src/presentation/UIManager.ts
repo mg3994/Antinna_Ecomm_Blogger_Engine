@@ -3,18 +3,22 @@ export class UIManager {
     return document.getElementById(id) as T;
   }
 
-  static setContent(id: string, content: string): void {
-    const e = this.el(id);
+  static query<T extends HTMLElement>(selector: string): T | null {
+    return document.querySelector(selector) as T;
+  }
+
+  static setContent(idOrSelector: string, content: string): void {
+    const e = this.el(idOrSelector) || this.query(idOrSelector);
     if (e) e.textContent = content;
   }
 
-  static setHtml(id: string, html: string): void {
-    const e = this.el(id);
+  static setHtml(idOrSelector: string, html: string): void {
+    const e = this.el(idOrSelector) || this.query(idOrSelector);
     if (e) e.innerHTML = html;
   }
 
-  static toggleClass(id: string, className: string, force?: boolean): void {
-    const e = this.el(id);
+  static toggleClass(idOrSelector: string, className: string, force?: boolean): void {
+    const e = this.el(idOrSelector) || this.query(idOrSelector);
     if (e) e.classList.toggle(className, force);
   }
 
