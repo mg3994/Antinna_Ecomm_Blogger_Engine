@@ -6,6 +6,7 @@ import { SchemaExtractor } from '../core/SchemaExtractor';
 export class ProductRenderer {
   render(p: Product | ProductGroup | Service | any, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
     const isBusiness = p["@type"] === "LocalBusiness" || p["@type"] === "Store" || p["@type"] === "Organization";
+    const isPrimaryService = p["@type"] === "Service";
 
     if (isBusiness) {
         this.renderBusinessView(p);
@@ -44,6 +45,10 @@ export class ProductRenderer {
 
         this.renderVariants(p, state, onVariantChange);
         this.renderSpecs(variant, p);
+
+        // Handle Visibility for Services vs Products
+        UIManager.toggleClass("qty-controls", "hidden", isPrimaryService);
+
         this.renderOtherServices(offer?.seller || p.seller || (p as Service).provider, p);
     }
   }
@@ -56,7 +61,7 @@ export class ProductRenderer {
       const priceEl = UIManager.el("p-price");
       if (priceEl) priceEl.textContent = "Service Provider";
 
-      // Hide product specific controls
+      // Hide ALL product specific controls for Business Profile
       UIManager.toggleClass("p-sku", "hidden", true);
       UIManager.toggleClass("stock-badge-container", "hidden", true);
       UIManager.toggleClass("p-variants", "hidden", true);
@@ -71,6 +76,7 @@ export class ProductRenderer {
   private renderStockBadge(offer: Offer): void {
     const st = UIManager.el("stock-badge-container");
     if (st && offer) {
+      UIManager.toggleClass("stock-badge-container", "hidden", false);
       const av = offer.availability;
       let label = 'Out of Stock', css = 'out-stock', available = false;
       if (av === 'https://schema.org/InStock' || av === 'https://schema.org/OnlineOnly') {
@@ -82,7 +88,10 @@ export class ProductRenderer {
       }
       st.innerHTML = `<span class="stock-badge ${css}">${label}</span>`;
       const addBtn = UIManager.el<HTMLButtonElement>("add-to-cart-btn");
-      if (addBtn) addBtn.disabled = !available;
+      if (addBtn) {
+          UIManager.toggleClass("add-to-cart-btn", "hidden", false);
+          addBtn.disabled = !available;
+      }
     }
   }
 
@@ -130,8 +139,8 @@ export class ProductRenderer {
   private renderVariants(p: any, state: AppState, onVariantChange: (attr: string, val: string) => void): void {
     const vc = UIManager.el("p-variants");
     if (vc && !vc.children.length) {
-      UIManager.toggleClass("p-variants", "hidden", false);
       if (p.variesBy) {
+        UIManager.toggleClass("p-variants", "hidden", false);
         p.variesBy.forEach((u: string) => {
           const a = u.split(/[\/#]/).pop() || '';
           const vals = [...new Set(p.hasVariant.map((x: any) => x[a]).filter(Boolean))];
@@ -168,6 +177,7 @@ export class ProductRenderer {
           if (!state.selectedVariants[a]) state.selectedVariants[a] = String(vals[0]);
         });
       } else if (p.hasOfferCatalog) {
+        UIManager.toggleClass("p-variants", "hidden", false);
         const g = document.createElement("div");
         g.className = "v-group";
         g.innerHTML = `<span class="v-label">Available Packages</span>`;
@@ -261,6 +271,7 @@ export class ProductRenderer {
   private renderOtherServices(s: Organization | any, p: any): void {
     const otherSec = UIManager.el("other-services");
     const otherList = UIManager.el("other-services-list");
+    const titleEl = otherSec?.querySelector('.section-title');
     if (!otherSec || !otherList) return;
 
     const allCatalogs = SchemaExtractor.findAllCatalogs(s);
@@ -271,12 +282,17 @@ export class ProductRenderer {
 
     if (svcs.length > 0) {
       otherSec.style.display = "block";
+
+      // Dynamic Title
+      if (titleEl) {
+          const isBusiness = p["@type"] === "LocalBusiness" || p["@type"] === "Store" || p["@type"] === "Organization";
+          titleEl.textContent = isBusiness ? "Deals In / Our Services" : "Optional Product-Related Services";
+      }
+
       otherList.innerHTML = svcs.map((ser: any) => {
         const item = ser.itemOffered || ser;
         const n = item.name || ser.name;
         const { price, currency } = SchemaExtractor.extractPrice(ser);
-
-        // Ensure the service carries the parent's URL
         const url = p.url || window.location.href.split('?')[0].split('#')[0];
         const itemWithUrl = { ...item, url, offers: { "@type": "Offer", price, priceCurrency: currency, availability: SchemaExtractor.extractAvailability(ser) } };
 
