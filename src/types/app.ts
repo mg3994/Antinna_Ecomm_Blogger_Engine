@@ -8,7 +8,6 @@ export interface AppState {
   lastClickedAttribute: string | null;
   selectedPackage: any | null;
   verifiedLocation: any | null;
-  selectedAddOns: Record<string, number>; // name -> quantity
 }
 
 export interface LocationData {

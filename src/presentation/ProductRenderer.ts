@@ -45,7 +45,6 @@ export class ProductRenderer {
 
         this.renderVariants(p, state, onVariantChange);
         this.renderSpecs(variant, p);
-        this.renderAddons(offer, state);
 
         // Use class selector since it is a class in XML
         UIManager.toggleClass(".qty-controls", "hidden", isPrimaryService);
@@ -267,57 +266,6 @@ export class ProductRenderer {
         maps.style.display = "none";
       }
     }
-  }
-
-  private renderAddons(offer: Offer, state: AppState): void {
-    let container = UIManager.el('p-addons');
-    if (!container) {
-        const details = UIManager.el('details-section');
-        const otherSvcs = UIManager.el('other-services');
-        if (details && otherSvcs) {
-            container = document.createElement('div');
-            container.id = 'p-addons';
-            container.style.margin = '30px 0';
-            otherSvcs.before(container);
-        }
-    }
-    if (!container) return;
-    container.innerHTML = '';
-
-    const addons = offer?.addOn || [];
-    if (addons.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-
-    container.style.display = 'block';
-    container.innerHTML = `<h4 style="text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; margin-bottom:15px; border-left: 4px solid var(--accent); padding-left: 10px;">Available Add-ons</h4>`;
-
-    addons.forEach((addon, idx) => {
-        const item = addon.itemOffered || addon;
-        const name = item.name || addon.name;
-        const { price, currency } = SchemaExtractor.extractPrice(addon);
-        const eq = addon.eligibleQuantity;
-        const max = eq?.maxValue !== undefined ? Number(eq.maxValue) : Infinity;
-
-        const currentQty = state.selectedAddOns[name] || 0;
-
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--bg); border-radius:12px; margin-bottom:10px; transition: all 0.2s;';
-
-        row.innerHTML = `
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.95rem;">${name}</div>
-                <div style="color:var(--accent); font-weight:800; font-size:0.85rem;">+ ${currency} ${price}</div>
-            </div>
-            <div class="qty-controls" style="margin:0;">
-                <button class="qty-btn" style="width:28px; height:28px; font-size:0.9rem;" onclick="AntinnaEngine.updateAddonQty('${name}', -1, ${max})">-</button>
-                <span style="font-weight:800; min-width:20px; text-align:center;">${currentQty}</span>
-                <button class="qty-btn" style="width:28px; height:28px; font-size:0.9rem;" onclick="AntinnaEngine.updateAddonQty('${name}', 1, ${max})">+</button>
-            </div>
-        `;
-        container!.appendChild(row);
-    });
   }
 
   private renderOtherServices(s: Organization | any, p: any): void {

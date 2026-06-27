@@ -63,20 +63,7 @@ export class CartManager {
       return av !== "https://schema.org/OutOfStock" && av !== "https://schema.org/SoldOut";
   }
 
-  public checkQuantityConstraint(offer: any, currentQty: number, delta: number): { allowed: boolean, message?: string } {
-      if (!offer?.eligibleQuantity) return { allowed: true };
-      const eq = offer.eligibleQuantity;
-      const min = eq.minValue !== undefined ? Number(eq.minValue) : 0;
-      const max = eq.maxValue !== undefined ? Number(eq.maxValue) : Infinity;
-
-      const newQty = currentQty + delta;
-      if (newQty < min) return { allowed: false, message: `Minimum quantity is ${min}` };
-      if (newQty > max) return { allowed: false, message: `Maximum quantity is ${max}` };
-
-      return { allowed: true };
-  }
-
-  addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>, addons: any[] = []): void {
+  addItem(item: Product | Service, seller?: Organization, selectedVariants?: Record<string, string>): void {
     const availability = SchemaExtractor.extractAvailability(item.offers);
     if (availability === "https://schema.org/OutOfStock") {
         // Prevent adding if out of stock
@@ -94,18 +81,8 @@ export class CartManager {
     );
 
     if (existing) {
-      const constraint = this.checkQuantityConstraint(item.offers, existing.orderQuantity, 1);
-      if (!constraint.allowed) {
-          if (constraint.message) (window as any).showToast(constraint.message, 'error');
-          return;
-      }
       existing.orderQuantity++;
     } else {
-      const constraint = this.checkQuantityConstraint(item.offers, 0, 1);
-      if (!constraint.allowed) {
-          if (constraint.message) (window as any).showToast(constraint.message, 'error');
-          return;
-      }
       const specs: any = {};
       const fields = [
         'material', 'color', 'size', 'gtin13', 'sku',
@@ -130,31 +107,10 @@ export class CartManager {
         itemKey: itemKey
       } as any);
     }
-
-    // Process Addons
-    if (addons.length > 0) {
-        const parentKey = itemKey;
-        addons.forEach(addonOffer => {
-            const addonItem = addonOffer.itemOffered || addonOffer;
-            const addonKey = this.generateItemKey(addonItem, undefined, parentKey);
-
-            const existingAddon = this.order.orderedItem.find(oi => (oi as any).itemKey === addonKey);
-            if (!existingAddon) {
-                this.order.orderedItem.push({
-                    "@type": "OrderItem",
-                    orderedItem: { ...addonItem, url: item.url, _parentKey: parentKey },
-                    orderQuantity: addonOffer._selectedQty || 1,
-                    seller: seller,
-                    itemKey: addonKey
-                } as any);
-            }
-        });
-    }
-
     this.saveToStorage();
   }
 
-  private generateItemKey(item: Product | Service | any, variants?: Record<string, string>, parentKey?: string): string {
+  private generateItemKey(item: Product | Service | any, variants?: Record<string, string>): string {
     let url = item.url || '';
     if (url.includes('?')) url = url.split('?')[0];
     if (url.includes('#')) url = url.split('#')[0];
@@ -170,34 +126,19 @@ export class CartManager {
       variantString = sortedKeys.map(k => `${k}:${variants[k]}`).join('|');
     }
 
-    let key = `${url}::${type}::${sku}::${name}::${variantString}`;
-    if (parentKey) key += `::parent:${parentKey}`;
-    return key;
+    return `${url}::${type}::${sku}::${name}::${variantString}`;
   }
 
   removeItem(index: number): void {
-    const item = this.order.orderedItem[index] as any;
+    const item = this.order.orderedItem[index];
     if (!item) return;
-
-    const itemKey = item.itemKey;
     this.order.orderedItem.splice(index, 1);
-
-    // Cascading remove addons
-    this.order.orderedItem = this.order.orderedItem.filter(oi => (oi as any).orderedItem._parentKey !== itemKey);
-
     this.saveToStorage();
   }
 
   updateQty(index: number, delta: number): void {
-    const item = this.order.orderedItem[index] as any;
+    const item = this.order.orderedItem[index];
     if (!item) return;
-
-    const constraint = this.checkQuantityConstraint(item.orderedItem.offers, item.orderQuantity, delta);
-    if (!constraint.allowed) {
-        if (constraint.message) (window as any).showToast(constraint.message, 'error');
-        return;
-    }
-
     item.orderQuantity += delta;
     if (item.orderQuantity <= 0) {
       this.removeItem(index);
