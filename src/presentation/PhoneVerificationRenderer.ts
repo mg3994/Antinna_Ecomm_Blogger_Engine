@@ -32,21 +32,21 @@ export class PhoneVerificationRenderer {
 
           <div id="phone-input-container">
             <div class="antinna-geo-search-container antinna-input-prefixed">
-                <div class="antinna-country-selector" onclick="event.stopPropagation(); document.getElementById('antinna-country-list').classList.toggle('active')">
+                <div id="antinna-country-trigger" class="antinna-country-selector">
                     <span id="antinna-selected-flag">${this.selectedCountry.flag}</span>
                     <span id="antinna-selected-code">${this.selectedCountry.code}</span>
-                    <span style="font-size: 0.6rem; opacity: 0.5; margin-left: 4px;">▼</span>
+                    <span class="antinna-country-chevron"></span>
                     <div id="antinna-country-list" class="antinna-country-list">
                         ${this.countries.map(c => `
-                            <div class="antinna-country-item" onclick="window.AntinnaEngine.PhoneVerificationRenderer.setCountry('${c.code}')">
-                                <span>${c.flag}</span>
-                                <span>${c.name}</span>
-                                <span style="margin-left:auto; opacity:0.5;">${c.code}</span>
+                            <div class="antinna-country-item" data-code="${c.code}">
+                                <span class="antinna-country-flag">${c.flag}</span>
+                                <span class="antinna-country-name">${c.name}</span>
+                                <span class="antinna-country-code">${c.code}</span>
                             </div>
                         `).join('')}
                     </div>
                 </div>
-                <input id="antinna-phone-number" type="tel" placeholder="Phone number" autocomplete="off">
+                <input id="antinna-phone-number" type="tel" placeholder="98765 43210" autocomplete="off">
             </div>
             <div id="recaptcha-container" style="margin-top:15px;"></div>
             <button id="antinna-send-otp-btn" class="v-btn active" style="width:100%; margin-top:20px; display: flex; align-items: center; justify-content: center;">
@@ -82,13 +82,31 @@ export class PhoneVerificationRenderer {
       const sendBtn = UIManager.el('antinna-send-otp-btn');
       const verifyBtn = UIManager.el('antinna-verify-otp-btn');
       const resendBtn = UIManager.el('antinna-resend-btn');
+      const trigger = UIManager.el('antinna-country-trigger');
+      const list = UIManager.el('antinna-country-list');
 
       if (sendBtn) sendBtn.onclick = () => this.handleSendOTP();
       if (verifyBtn) verifyBtn.onclick = () => this.handleVerifyOTP();
       if (resendBtn) resendBtn.onclick = () => this.handleSendOTP();
 
+      if (trigger) {
+          trigger.onclick = (e) => {
+              e.stopPropagation();
+              const isActive = list?.classList.toggle('active');
+              trigger.classList.toggle('active', isActive);
+          };
+      }
+
+      document.querySelectorAll('.antinna-country-item').forEach(item => {
+          (item as HTMLElement).onclick = (e) => {
+              e.stopPropagation();
+              const code = (item as HTMLElement).dataset.code;
+              if (code) this.setCountry(code);
+          };
+      });
+
       document.addEventListener('click', () => {
-          UIManager.el('antinna-country-list')?.classList.remove('active');
+          list?.classList.remove('active');
       });
   }
 
@@ -98,7 +116,11 @@ export class PhoneVerificationRenderer {
           this.selectedCountry = country;
           UIManager.setContent('antinna-selected-flag', country.flag);
           UIManager.setContent('antinna-selected-code', country.code);
-          UIManager.el('antinna-country-list')?.classList.remove('active');
+
+          const list = UIManager.el('antinna-country-list');
+          const trigger = UIManager.el('antinna-country-trigger');
+          list?.classList.remove('active');
+          trigger?.classList.remove('active');
       }
   }
 
