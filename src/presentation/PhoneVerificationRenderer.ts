@@ -80,19 +80,23 @@ export class PhoneVerificationRenderer {
     }
 
     const auth = (window as any).firebaseAuth;
-    const user = auth.currentUser;
-    if (!user) return;
+    const user = auth?.currentUser;
+    if (!user) {
+        UIManager.showToast("Authentication required", "error");
+        return;
+    }
+
+    const RecaptchaVerifier = (window as any).RecaptchaVerifier;
+    const linkWithPhoneNumber = (window as any).linkWithPhoneNumber;
+
+    if (!RecaptchaVerifier || !linkWithPhoneNumber) {
+        UIManager.showToast("Auth engine not fully loaded", "error");
+        return;
+    }
 
     UIManager.showToast("Sending OTP...", "success");
 
     try {
-        // Link with phone number
-        // Note: For this to work, RecaptchaVerifier must be initialized.
-        // We assume it's set up in the background or via a global helper.
-        // In a real Blogger environment, we'd ensure the Firebase UI/Auth is fully ready.
-
-        const { linkWithPhoneNumber, RecaptchaVerifier } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-
         if (!(window as any).recaptchaVerifier) {
             (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible'

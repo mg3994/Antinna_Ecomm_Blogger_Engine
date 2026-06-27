@@ -10,6 +10,8 @@ import {
       signOut,
       setPersistence,
       browserLocalPersistence,
+      RecaptchaVerifier,
+      linkWithPhoneNumber,
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import {
       getMessaging,
@@ -45,6 +47,8 @@ import {
       : getApps()[0];
     const auth = getAuth(app);
     window.firebaseAuth = auth; // Expose for linking
+    window.RecaptchaVerifier = RecaptchaVerifier;
+    window.linkWithPhoneNumber = linkWithPhoneNumber;
 
     // Set persistence to LOCAL so session is remembered
     (async () => {
