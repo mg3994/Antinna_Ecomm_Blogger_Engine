@@ -216,6 +216,12 @@ export class App {
         const baseQuery = qInput.value.trim();
         const locString = this.formatLocationQuery();
 
+        // Validate: At least one must be present
+        if (!baseQuery && !locString) {
+            UIManager.showToast("Please enter a query or select location", "error");
+            return;
+        }
+
         const combinedQuery = (locString && !baseQuery.includes(locString))
             ? `${baseQuery} ${locString}`.trim()
             : baseQuery;
