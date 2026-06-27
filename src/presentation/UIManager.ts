@@ -63,6 +63,21 @@ export class UIManager {
       .antinna-input-prefix { padding: 0 15px; background: #eee; height: 100%; display: flex; align-items: center; font-weight: 700; color: #555; border-right: 1px solid #ddd; }
       html.dark .antinna-input-prefix { background: #334155; color: #cbd5e1; border-right-color: #475569; }
       .antinna-input-prefixed input { border: none !important; flex: 1; }
+
+      .antinna-country-selector { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 15px; cursor: pointer; border-right: 1px solid #ddd; background: #f8f9fa; transition: background 0.2s; }
+      html.dark .antinna-country-selector { background: #1e293b; border-right-color: #475569; }
+      .antinna-country-selector:hover { background: #eee; }
+      html.dark .antinna-country-selector:hover { background: #334155; }
+
+      .antinna-country-list { position: absolute; top: 100%; left: 0; width: 200px; background: var(--card); border: 1px solid #ddd; border-radius: 0 0 12px 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 2000; display: none; margin-top: 1px; }
+      html.dark .antinna-country-list { border-color: #334155; }
+      .antinna-country-list.active { display: block; }
+
+      .antinna-country-item { display: flex; align-items: center; gap: 12px; padding: 12px 15px; font-size: 0.9rem; transition: background 0.2s; border-bottom: 1px solid #eee; }
+      html.dark .antinna-country-item { border-bottom-color: #334155; }
+      .antinna-country-item:last-child { border-bottom: none; }
+      .antinna-country-item:hover { background: #f0f0f0; color: var(--accent); }
+      html.dark .antinna-country-item:hover { background: #334155; }
     `;
     document.head.appendChild(style);
   }

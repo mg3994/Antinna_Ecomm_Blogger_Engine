@@ -4,6 +4,14 @@ export class PhoneVerificationRenderer {
   private confirmationResult: any = null;
   private resendTimer: any = null;
   private countdown: number = 60;
+  private selectedCountry = { code: '+91', name: 'India', flag: '🇮🇳' };
+  private countries = [
+    { code: '+91', name: 'India', flag: '🇮🇳' },
+    { code: '+1', name: 'USA', flag: '🇺🇸' },
+    { code: '+44', name: 'UK', flag: '🇬🇧' },
+    { code: '+971', name: 'UAE', flag: '🇦🇪' },
+    { code: '+65', name: 'Singapore', flag: '🇸🇬' }
+  ];
 
   public render(): void {
     let modal = UIManager.el('antinna-phone-modal');
@@ -24,8 +32,21 @@ export class PhoneVerificationRenderer {
 
           <div id="phone-input-container">
             <div class="antinna-geo-search-container antinna-input-prefixed">
-                <span class="antinna-input-prefix">+91</span>
-                <input id="antinna-phone-number" type="tel" placeholder="98765 43210" maxlength="10" autocomplete="off">
+                <div class="antinna-country-selector" onclick="event.stopPropagation(); document.getElementById('antinna-country-list').classList.toggle('active')">
+                    <span id="antinna-selected-flag">${this.selectedCountry.flag}</span>
+                    <span id="antinna-selected-code">${this.selectedCountry.code}</span>
+                    <span style="font-size: 0.6rem; opacity: 0.5; margin-left: 4px;">▼</span>
+                    <div id="antinna-country-list" class="antinna-country-list">
+                        ${this.countries.map(c => `
+                            <div class="antinna-country-item" onclick="window.AntinnaEngine.PhoneVerificationRenderer.setCountry('${c.code}')">
+                                <span>${c.flag}</span>
+                                <span>${c.name}</span>
+                                <span style="margin-left:auto; opacity:0.5;">${c.code}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <input id="antinna-phone-number" type="tel" placeholder="Phone number" autocomplete="off">
             </div>
             <div id="recaptcha-container" style="margin-top:15px;"></div>
             <button id="antinna-send-otp-btn" class="v-btn active" style="width:100%; margin-top:20px; display: flex; align-items: center; justify-content: center;">
@@ -65,6 +86,20 @@ export class PhoneVerificationRenderer {
       if (sendBtn) sendBtn.onclick = () => this.handleSendOTP();
       if (verifyBtn) verifyBtn.onclick = () => this.handleVerifyOTP();
       if (resendBtn) resendBtn.onclick = () => this.handleSendOTP();
+
+      document.addEventListener('click', () => {
+          UIManager.el('antinna-country-list')?.classList.remove('active');
+      });
+  }
+
+  public setCountry(code: string): void {
+      const country = this.countries.find(c => c.code === code);
+      if (country) {
+          this.selectedCountry = country;
+          UIManager.setContent('antinna-selected-flag', country.flag);
+          UIManager.setContent('antinna-selected-code', country.code);
+          UIManager.el('antinna-country-list')?.classList.remove('active');
+      }
   }
 
   private initRecaptcha(): void {
@@ -122,12 +157,12 @@ export class PhoneVerificationRenderer {
     const phoneInput = UIManager.el<HTMLInputElement>('antinna-phone-number');
     let phone = phoneInput?.value.trim().replace(/\D/g, '');
 
-    if (!phone || phone.length !== 10) {
-        UIManager.showToast("Enter a valid 10-digit number", "error");
+    if (!phone || phone.length < 7) {
+        UIManager.showToast("Enter a valid phone number", "error");
         return;
     }
 
-    phone = '+91' + phone;
+    phone = this.selectedCountry.code + phone;
 
     const auth = (window as any).firebaseAuth;
     const user = auth?.currentUser;
