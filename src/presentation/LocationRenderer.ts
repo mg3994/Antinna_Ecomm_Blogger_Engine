@@ -13,6 +13,7 @@ export class LocationRenderer {
   }
 
   showModal(): void {
+    UIManager.injectModalStyles();
     UIManager.el('loc-modal-backdrop')?.classList.add('active');
   }
 
@@ -36,14 +37,13 @@ export class LocationRenderer {
       return;
     }
 
-    const btn = document.querySelector('.loc-btn');
+    const btn = UIManager.query('.loc-btn');
     if (btn) {
         btn.classList.add('loading');
-        // Ensure it has a spinner element
         if (!btn.querySelector('.antinna-spinner')) {
             const spinner = document.createElement('span');
             spinner.className = 'antinna-spinner';
-            btn.prepend(spinner);
+            btn.appendChild(spinner); // Use append so it doesn't shift existing spans
         }
     }
 
