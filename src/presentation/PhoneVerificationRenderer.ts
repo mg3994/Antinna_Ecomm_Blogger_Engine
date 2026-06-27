@@ -128,13 +128,11 @@ export class PhoneVerificationRenderer {
   private startResendTimer(): void {
       if (this.resendTimer) clearInterval(this.resendTimer);
       this.countdown = 60;
+
+      UIManager.setHtml('antinna-resend-container', `Didn't receive code? <button id="antinna-resend-btn" disabled style="background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; opacity:0.5;">Resend (<span id="antinna-countdown">60</span>s)</button>`);
+
       const btn = UIManager.el<HTMLButtonElement>('antinna-resend-btn');
       const countEl = UIManager.el('antinna-countdown');
-
-      if (btn) {
-          btn.disabled = true;
-          btn.style.opacity = "0.5";
-      }
 
       this.resendTimer = setInterval(() => {
           this.countdown--;
@@ -142,10 +140,9 @@ export class PhoneVerificationRenderer {
 
           if (this.countdown <= 0) {
               clearInterval(this.resendTimer);
-              if (btn) {
-                  btn.disabled = false;
-                  btn.style.opacity = "1";
-                  UIManager.setContent('antinna-resend-container', 'Didn\'t receive code? <button id="antinna-resend-btn" style="background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer;">Resend Now</button>');
+              const container = UIManager.el('antinna-resend-container');
+              if (container) {
+                  UIManager.setHtml('antinna-resend-container', `Didn't receive code? <button id="antinna-resend-btn" style="background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer;">Resend Now</button>`);
                   const newBtn = UIManager.el('antinna-resend-btn');
                   if (newBtn) newBtn.onclick = () => this.handleSendOTP();
               }
