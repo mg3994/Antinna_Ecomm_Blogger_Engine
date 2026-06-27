@@ -50,6 +50,13 @@ export class UIManager {
       html.dark .antinna-geo-metrics { background: #1e293b; border-color: #059669; }
       .antinna-geo-tag { font-family: monospace; font-size: 0.75rem; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #475569; }
       html.dark .antinna-geo-tag { background: #334155; color: #cbd5e1; }
+
+      .antinna-spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: antinna-spin 0.8s linear infinite; }
+      @keyframes antinna-spin { to { transform: rotate(360deg); } }
+
+      .v-btn.loading { pointer-events: none; opacity: 0.8; }
+      .v-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; }
+      .v-btn.loading .btn-text { display: none; }
     `;
     document.head.appendChild(style);
   }

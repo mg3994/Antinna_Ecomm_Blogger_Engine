@@ -2,6 +2,8 @@ import { UIManager } from './UIManager';
 
 export class PhoneVerificationRenderer {
   private confirmationResult: any = null;
+  private resendTimer: any = null;
+  private countdown: number = 60;
 
   public render(): void {
     let modal = UIManager.el('antinna-phone-modal');
@@ -25,14 +27,23 @@ export class PhoneVerificationRenderer {
                 <input id="antinna-phone-number" type="tel" placeholder="+91 98765 43210" autocomplete="off">
             </div>
             <div id="recaptcha-container" style="margin-top:15px;"></div>
-            <button id="antinna-send-otp-btn" class="v-btn active" style="width:100%; margin-top:20px;">Send OTP</button>
+            <button id="antinna-send-otp-btn" class="v-btn active" style="width:100%; margin-top:20px; display: flex; align-items: center; justify-content: center;">
+                <span class="antinna-spinner"></span>
+                <span class="btn-text">Send OTP</span>
+            </button>
           </div>
 
           <div id="otp-input-container" style="display:none;">
             <div class="antinna-geo-search-container">
                 <input id="antinna-otp-code" type="text" placeholder="Enter 6-digit OTP" maxlength="6" autocomplete="off">
             </div>
-            <button id="antinna-verify-otp-btn" class="v-btn active" style="width:100%; margin-top:20px;">Verify & Link</button>
+            <div id="antinna-resend-container" style="margin-top:15px; font-size:0.85rem; text-align:center; color:#777;">
+                Didn't receive code? <button id="antinna-resend-btn" disabled style="background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; opacity:0.5;">Resend (<span id="antinna-countdown">60</span>s)</button>
+            </div>
+            <button id="antinna-verify-otp-btn" class="v-btn active" style="width:100%; margin-top:20px; display: flex; align-items: center; justify-content: center;">
+                <span class="antinna-spinner"></span>
+                <span class="btn-text">Verify & Link</span>
+            </button>
             <button class="qty-btn" style="border:none; margin-top:10px; background:none; width:100%;" onclick="document.getElementById('phone-input-container').style.display='block'; document.getElementById('otp-input-container').style.display='none';">Back</button>
           </div>
         </div>
@@ -48,9 +59,11 @@ export class PhoneVerificationRenderer {
   private setupListeners(): void {
       const sendBtn = UIManager.el('antinna-send-otp-btn');
       const verifyBtn = UIManager.el('antinna-verify-otp-btn');
+      const resendBtn = UIManager.el('antinna-resend-btn');
 
       if (sendBtn) sendBtn.onclick = () => this.handleSendOTP();
       if (verifyBtn) verifyBtn.onclick = () => this.handleVerifyOTP();
+      if (resendBtn) resendBtn.onclick = () => this.handleSendOTP();
   }
 
   private initRecaptcha(): void {
@@ -69,6 +82,39 @@ export class PhoneVerificationRenderer {
             // Since we used ESM in auth-engine, we'll try to get it from the global scope if exposed.
           } catch(e) {}
       }
+  }
+
+  private setBtnLoading(btnId: string, isLoading: boolean): void {
+      const btn = UIManager.el(btnId);
+      if (btn) btn.classList.toggle('loading', isLoading);
+  }
+
+  private startResendTimer(): void {
+      if (this.resendTimer) clearInterval(this.resendTimer);
+      this.countdown = 60;
+      const btn = UIManager.el<HTMLButtonElement>('antinna-resend-btn');
+      const countEl = UIManager.el('antinna-countdown');
+
+      if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = "0.5";
+      }
+
+      this.resendTimer = setInterval(() => {
+          this.countdown--;
+          if (countEl) countEl.textContent = String(this.countdown);
+
+          if (this.countdown <= 0) {
+              clearInterval(this.resendTimer);
+              if (btn) {
+                  btn.disabled = false;
+                  btn.style.opacity = "1";
+                  UIManager.setContent('antinna-resend-container', 'Didn\'t receive code? <button id="antinna-resend-btn" style="background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer;">Resend Now</button>');
+                  const newBtn = UIManager.el('antinna-resend-btn');
+                  if (newBtn) newBtn.onclick = () => this.handleSendOTP();
+              }
+          }
+      }, 1000);
   }
 
   private async handleSendOTP(): Promise<void> {
@@ -94,7 +140,8 @@ export class PhoneVerificationRenderer {
         return;
     }
 
-    UIManager.showToast("Sending OTP...", "success");
+    const activeBtnId = UIManager.el('phone-input-container')!.style.display !== 'none' ? 'antinna-send-otp-btn' : 'antinna-resend-btn';
+    this.setBtnLoading(activeBtnId, true);
 
     try {
         if (!(window as any).recaptchaVerifier) {
@@ -108,9 +155,12 @@ export class PhoneVerificationRenderer {
         UIManager.el('phone-input-container')!.style.display = 'none';
         UIManager.el('otp-input-container')!.style.display = 'block';
         UIManager.showToast("OTP sent successfully!", "success");
+        this.startResendTimer();
     } catch (error: any) {
         console.error("Phone linking failed", error);
         UIManager.showToast(error.message || "Failed to send OTP", "error");
+    } finally {
+        this.setBtnLoading(activeBtnId, false);
     }
   }
 
@@ -124,7 +174,7 @@ export class PhoneVerificationRenderer {
 
     if (!this.confirmationResult) return;
 
-    UIManager.showToast("Verifying...", "success");
+    this.setBtnLoading('antinna-verify-otp-btn', true);
 
     try {
         await this.confirmationResult.confirm(code);
@@ -132,11 +182,15 @@ export class PhoneVerificationRenderer {
         UIManager.el('antinna-phone-modal')?.classList.remove('active');
         (window as any).hasPhoneLinked = true;
 
+        if (this.resendTimer) clearInterval(this.resendTimer);
+
         // Proceed to next step
         (window as any).AntinnaEngine.showGeoVerification();
     } catch (error: any) {
         console.error("OTP Verification failed", error);
         UIManager.showToast("Invalid OTP code", "error");
+    } finally {
+        this.setBtnLoading('antinna-verify-otp-btn', false);
     }
   }
 }
