@@ -57,6 +57,12 @@ export class UIManager {
       .v-btn.loading { pointer-events: none; opacity: 0.8; }
       .v-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; }
       .v-btn.loading .btn-text { display: none; }
+
+      .antinna-input-prefixed { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; background: var(--bg); }
+      html.dark .antinna-input-prefixed { border-color: #334155; }
+      .antinna-input-prefix { padding: 0 15px; background: #eee; height: 100%; display: flex; align-items: center; font-weight: 700; color: #555; border-right: 1px solid #ddd; }
+      html.dark .antinna-input-prefix { background: #334155; color: #cbd5e1; border-right-color: #475569; }
+      .antinna-input-prefixed input { border: none !important; flex: 1; }
     `;
     document.head.appendChild(style);
   }

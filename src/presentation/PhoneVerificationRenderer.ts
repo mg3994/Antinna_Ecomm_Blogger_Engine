@@ -23,8 +23,9 @@ export class PhoneVerificationRenderer {
           </p>
 
           <div id="phone-input-container">
-            <div class="antinna-geo-search-container">
-                <input id="antinna-phone-number" type="tel" placeholder="+91 98765 43210" autocomplete="off">
+            <div class="antinna-geo-search-container antinna-input-prefixed">
+                <span class="antinna-input-prefix">+91</span>
+                <input id="antinna-phone-number" type="tel" placeholder="98765 43210" maxlength="10" autocomplete="off">
             </div>
             <div id="recaptcha-container" style="margin-top:15px;"></div>
             <button id="antinna-send-otp-btn" class="v-btn active" style="width:100%; margin-top:20px; display: flex; align-items: center; justify-content: center;">
@@ -119,11 +120,14 @@ export class PhoneVerificationRenderer {
 
   private async handleSendOTP(): Promise<void> {
     const phoneInput = UIManager.el<HTMLInputElement>('antinna-phone-number');
-    const phone = phoneInput?.value.trim();
-    if (!phone) {
-        UIManager.showToast("Please enter a phone number", "error");
+    let phone = phoneInput?.value.trim().replace(/\D/g, '');
+
+    if (!phone || phone.length !== 10) {
+        UIManager.showToast("Enter a valid 10-digit number", "error");
         return;
     }
+
+    phone = '+91' + phone;
 
     const auth = (window as any).firebaseAuth;
     const user = auth?.currentUser;
