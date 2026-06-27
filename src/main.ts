@@ -20,7 +20,8 @@ export class App {
     quantity: 1,
     lastClickedAttribute: null,
     selectedPackage: null,
-    verifiedLocation: null
+    verifiedLocation: null,
+    selectedAddOns: {}
   };
 
   private gridPageSize = 20;
@@ -121,14 +122,15 @@ export class App {
     (window as any).showOrderSummary = () => this.showOrderSummary();
     (window as any).showGeoVerification = () => this.showGeoVerification();
     (window as any).setVerifiedLocation = (loc: any) => { this.state.verifiedLocation = loc; };
+    (window as any).updateAddonQty = (name: string, delta: number, max: number) => this.updateAddonQty(name, delta, max);
   }
 
   private init(): void {
     document.addEventListener("DOMContentLoaded", () => {
       this.LocationRenderer.init();
       this.CartRenderer.renderFab();
-      this.setupEventListeners();
       this.loadProductData();
+      this.setupEventListeners();
       this.loadGridData();
       this.updateCategoryLinks();
       this.highlightActiveLabels();
@@ -193,15 +195,36 @@ export class App {
     const searchForm = UIManager.el<HTMLFormElement>("search-form");
 
     if (qtyPlus) qtyPlus.onclick = () => {
+      const p = this.state.product as any;
+      const variant = SchemaExtractor.findMatchingVariant(p, this.state.selectedVariants, this.state.lastClickedAttribute);
+      const offer = variant?.offers || p?.offers;
+
+      const constraint = this.CartManager.checkQuantityConstraint(offer, this.state.quantity, 1);
+      if (!constraint.allowed) {
+          if (constraint.message) UIManager.showToast(constraint.message, 'error');
+          return;
+      }
+
       this.state.quantity++;
       UIManager.setContent("qty-val", String(this.state.quantity));
     };
 
     if (qtyMinus) qtyMinus.onclick = () => {
-      if (this.state.quantity > 1) {
-        this.state.quantity--;
-        UIManager.setContent("qty-val", String(this.state.quantity));
+      const p = this.state.product as any;
+      const variant = SchemaExtractor.findMatchingVariant(p, this.state.selectedVariants, this.state.lastClickedAttribute);
+      const offer = variant?.offers || p?.offers;
+
+      const constraint = this.CartManager.checkQuantityConstraint(offer, this.state.quantity, -1);
+      if (!constraint.allowed) {
+          if (this.state.quantity > 1) {
+             this.state.quantity--;
+             UIManager.setContent("qty-val", String(this.state.quantity));
+          }
+          return;
       }
+
+      this.state.quantity--;
+      UIManager.setContent("qty-val", String(this.state.quantity));
     };
 
     if (addBtn) addBtn.onclick = () => this.handleAddToCart();
@@ -237,8 +260,7 @@ export class App {
     }
   }
 
-  private loadProductData(): void {
-    setTimeout(() => {
+  private async loadProductData(): Promise<void> {
       const rawBody = UIManager.el("post-body-raw");
       if (rawBody) {
         const data = SchemaExtractor.extractJsonLd<any>(rawBody.textContent || "");
@@ -257,7 +279,6 @@ export class App {
       UIManager.toggleClass("#initializing-state", "hidden", true);
       UIManager.toggleClass("#carousel-section", "hidden", false);
       UIManager.toggleClass("#details-section", "hidden", false);
-    }, 100);
   }
 
   private async loadGridData(): Promise<void> {
@@ -402,11 +423,39 @@ export class App {
 
     const itemToStore = { ...variant, url: window.location.href.split('?')[0].split('#')[0] };
 
+    // Prepare selected addons
+    const addonsToAdd: any[] = [];
+    const availableAddons = (variant.offers || p.offers)?.addOn || [];
+
+    Object.entries(this.state.selectedAddOns).forEach(([name, qty]) => {
+        if (qty > 0) {
+            const addonOffer = availableAddons.find((a: any) => (a.itemOffered?.name || a.name) === name);
+            if (addonOffer) {
+                addonsToAdd.push({ ...addonOffer, _selectedQty: qty });
+            }
+        }
+    });
+
     for (let i = 0; i < this.state.quantity; i++) {
-      this.CartManager.addItem(itemToStore, itemToStore.offers?.seller || p.seller || p.provider, this.state.selectedVariants);
+      this.CartManager.addItem(itemToStore, itemToStore.offers?.seller || p.seller || p.provider, this.state.selectedVariants, addonsToAdd);
     }
+
     this.CartRenderer.updateUI();
     UIManager.showToast("Added to Bag", "success");
+  }
+
+  public updateAddonQty(name: string, delta: number, max: number): void {
+      const current = this.state.selectedAddOns[name] || 0;
+      const newVal = Math.max(0, Math.min(max, current + delta));
+      this.state.selectedAddOns[name] = newVal;
+
+      const p = this.state.product as any;
+      if (p) {
+        this.ProductRenderer.render(p, this.state, (attr, val) => {
+            this.state.selectedVariants[attr] = val;
+            this.ProductRenderer.render(this.state.product!, this.state, () => {});
+        });
+      }
   }
 
   public goToSlide(i: number): void {

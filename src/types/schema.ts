@@ -131,6 +131,8 @@ export interface Offer extends Thing {
   availability?: ItemAvailability;
   seller?: Organization;
   itemOffered?: Product | Service;
+  addOn?: Offer[];
+  eligibleQuantity?: QuantitativeValue;
 }
 
 export type ItemAvailability =
