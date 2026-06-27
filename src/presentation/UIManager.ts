@@ -51,13 +51,15 @@ export class UIManager {
       .antinna-geo-tag { font-family: monospace; font-size: 0.75rem; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #475569; }
       html.dark .antinna-geo-tag { background: #334155; color: #cbd5e1; }
 
-      .antinna-spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: antinna-spin 0.8s linear infinite; }
+      .antinna-spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: currentColor; animation: antinna-spin 0.8s linear infinite; }
       @keyframes antinna-spin { to { transform: rotate(360deg); } }
 
       .v-btn.loading { pointer-events: none; opacity: 0.8; }
-      .v-btn.loading .antinna-spinner, .loc-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; }
-      .v-btn.loading .btn-text, .loc-btn.loading span { display: none; }
-      .loc-btn.loading { pointer-events: none; opacity: 0.7; }
+      .v-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; border-top-color: #fff; }
+      .v-btn.loading .btn-text { display: none; }
+
+      .loc-btn.loading { pointer-events: none; position: relative; color: transparent !important; }
+      .loc-btn.loading .antinna-spinner { display: block; position: absolute; left: 50%; top: 50%; margin-left: -10px; margin-top: -10px; color: var(--accent); }
 
       .antinna-input-prefixed { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 12px; position: relative; background: var(--bg); }
       html.dark .antinna-input-prefixed { border-color: #334155; }

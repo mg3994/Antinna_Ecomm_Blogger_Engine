@@ -58,8 +58,13 @@
     </div>
 
     <div id="loc-modal-backdrop" class="modal-backdrop">
-        <input id="modal-pin-input" />
-        <button onclick="LocationRenderer.handleSetPin()">Set Pin</button>
+        <div class="modal-content">
+            <button class="loc-btn" onclick="window.LocationRenderer.handleRequestLocation()">
+                <span>🎯</span> Detect My Location
+            </button>
+            <input id="modal-pin-input" />
+            <button onclick="LocationRenderer.handleSetPin()">Set Pin</button>
+        </div>
     </div>
     <input id="loc-display-v2" />
 
