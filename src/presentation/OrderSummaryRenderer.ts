@@ -12,6 +12,7 @@ export class OrderSummaryRenderer {
       modal.id = 'antinna-summary-modal';
       modal.className = 'antinna-geo-backdrop';
       document.body.appendChild(modal);
+      UIManager.injectModalStyles();
     }
 
     const order = this.cartManager.getOrder();

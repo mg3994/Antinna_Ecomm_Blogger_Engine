@@ -457,10 +457,14 @@ export class App {
       if (!loginModal) {
           loginModal = document.createElement('div');
           loginModal.id = 'antinna-login-modal';
-          loginModal.className = 'antinna-geo-backdrop'; // Reuse backdrop styles
+          loginModal.className = 'antinna-geo-backdrop';
+          UIManager.injectModalStyles();
           loginModal.innerHTML = `
             <div class="antinna-geo-content" style="text-align:center;">
-                <h3 style="margin-bottom:20px;">Sign in Required</h3>
+                <div class="antinna-geo-header">
+                    <h3>Sign in Required</h3>
+                    <button class="antinna-geo-close" onclick="document.getElementById('antinna-login-modal').classList.remove('active')">&times;</button>
+                </div>
                 <p style="margin-bottom:30px; opacity:0.8;">Please sign in to your account to finalize your order and proceed to payment.</p>
                 <button class="v-btn active btn-google-login" id="google-login-btn-checkout" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:15px;">
                     <svg viewBox="0 0 24 24" style="width:20px; height:20px;">
@@ -471,7 +475,6 @@ export class App {
                     </svg>
                     Continue with Google
                 </button>
-                <button class="qty-btn" style="border:none; margin-top:15px; background:none;" onclick="document.getElementById('antinna-login-modal').classList.remove('active')">Cancel</button>
             </div>
           `;
           document.body.appendChild(loginModal);

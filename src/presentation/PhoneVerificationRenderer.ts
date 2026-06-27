@@ -9,6 +9,7 @@ export class PhoneVerificationRenderer {
       modal = document.createElement('div');
       modal.id = 'antinna-phone-modal';
       modal.className = 'antinna-geo-backdrop';
+      UIManager.injectModalStyles();
       modal.innerHTML = `
         <div class="antinna-geo-content">
           <div class="antinna-geo-header">
