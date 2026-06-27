@@ -50,8 +50,8 @@ export class CartRenderer {
       if (countEl) countEl.textContent = String(count);
       fab.style.transform = count > 0 ? "scale(1)" : "scale(0)";
     }
-    const confirmBtn = UIManager.el<HTMLButtonElement>("cart-confirm-btn");
-    if (confirmBtn) confirmBtn.disabled = count === 0;
+    const proceedBtn = UIManager.el<HTMLButtonElement>("cart-proceed-btn");
+    if (proceedBtn) proceedBtn.disabled = count === 0;
   }
 
   showModal(): void {
@@ -59,6 +59,15 @@ export class CartRenderer {
     const drawer = UIManager.el("cart-drawer");
     const list = UIManager.el("cart-items-list");
     if (!list) return;
+
+    // Ensure footer has correct button
+    const footer = UIManager.query('.cart-footer');
+    if (footer && !UIManager.el('cart-proceed-btn')) {
+        footer.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-weight:900; font-size:1.2rem; margin-bottom:20px;"><span>Total</span><span id="cart-total-price">--</span></div>
+            <button class="v-btn active" id="cart-proceed-btn" onclick="AntinnaEngine.startCheckout()" style="width:100%; padding:18px; font-size:1.1rem; border-radius:12px;">Proceed</button>
+        `;
+    }
 
     const order = this.cartManager.getOrder();
     list.innerHTML = order.orderedItem.map((item, idx) => {

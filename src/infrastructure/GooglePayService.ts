@@ -4,10 +4,21 @@ export class GooglePayService {
   private merchantId = "BCR2DN5TVPLKL4KZ";
   private merchantName = "Antinna";
 
-  async initPayment(order: Order): Promise<void> {
+  async initPayment(order: Order, verifiedLocation?: any): Promise<void> {
     if (!(window as any).PaymentRequest) {
       alert("Payment Request API not supported in this browser.");
       return;
+    }
+
+    // Call dummy backend to create order record
+    try {
+        const { AppsScriptService } = await import('./AppsScriptService');
+        await AppsScriptService.getInstance().createOrder({
+            ...order,
+            verifiedLocation
+        });
+    } catch (e) {
+        console.error("Failed to record order in backend", e);
     }
 
     // Google Pay India (UPI) supported methods

@@ -7,6 +7,7 @@ export interface AppState {
   quantity: number;
   lastClickedAttribute: string | null;
   selectedPackage: any | null;
+  verifiedLocation: any | null;
 }
 
 export interface LocationData {
