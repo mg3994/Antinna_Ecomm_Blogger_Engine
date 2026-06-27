@@ -55,8 +55,9 @@ export class UIManager {
       @keyframes antinna-spin { to { transform: rotate(360deg); } }
 
       .v-btn.loading { pointer-events: none; opacity: 0.8; }
-      .v-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; }
-      .v-btn.loading .btn-text { display: none; }
+      .v-btn.loading .antinna-spinner, .loc-btn.loading .antinna-spinner { display: inline-block; margin-right: 8px; }
+      .v-btn.loading .btn-text, .loc-btn.loading span { display: none; }
+      .loc-btn.loading { pointer-events: none; opacity: 0.7; }
 
       .antinna-input-prefixed { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 12px; position: relative; background: var(--bg); }
       html.dark .antinna-input-prefixed { border-color: #334155; }

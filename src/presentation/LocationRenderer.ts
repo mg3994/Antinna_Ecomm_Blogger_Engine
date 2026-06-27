@@ -36,17 +36,35 @@ export class LocationRenderer {
       return;
     }
 
+    const btn = document.querySelector('.loc-btn');
+    if (btn) {
+        btn.classList.add('loading');
+        // Ensure it has a spinner element
+        if (!btn.querySelector('.antinna-spinner')) {
+            const spinner = document.createElement('span');
+            spinner.className = 'antinna-spinner';
+            btn.prepend(spinner);
+        }
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const geoData = await this.locationManager.reverseGeocode(latitude, longitude);
-        this.locationManager.setData({ lat: latitude, lon: longitude, ...geoData });
-        this.updateUI();
-        this.hideModal();
-        UIManager.showToast(`Location set to ${geoData.city || 'your area'}`, "success");
+        try {
+            const { latitude, longitude } = pos.coords;
+            const geoData = await this.locationManager.reverseGeocode(latitude, longitude);
+            this.locationManager.setData({ lat: latitude, lon: longitude, ...geoData });
+            this.updateUI();
+            this.hideModal();
+            UIManager.showToast(`Location set to ${geoData.city || 'your area'}`, "success");
+        } catch (e) {
+            UIManager.showToast("Failed to resolve address", "error");
+        } finally {
+            btn?.classList.remove('loading');
+        }
       },
       (err) => {
         UIManager.showToast("Location access denied", "error");
+        btn?.classList.remove('loading');
       }
     );
   }
